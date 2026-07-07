@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}API · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<h1 class="text-xl font-semibold text-white mb-4">HTTP API</h1>
+<p class="text-sm text-slate-400 mb-4 max-w-3xl">All endpoints speak JSON. Publisher endpoints require an API
+bearer token (<code>Authorization: Bearer &lt;token&gt;</code>, configured in <code>auth.api_tokens</code>);
+device endpoints require the device token issued at registration.</p>
+
+<div class="space-y-3 max-w-4xl">
+  {% for method, path, auth_kind, desc, body in [
+    ('GET',  '/api/health', 'none', 'Server health, version, and event counts.', ''),
+    ('POST', '/api/events', 'API token', 'Publish an event.',
+     '{"source": "dtc-monitor", "host": "mu2edaq09", "severity": "error", "title": "DTC link down", "message": "ROC link 3 lost lock", "meta": {"run": "107001"}}'),
+    ('GET',  '/api/events?limit=&severity=&source=&since_id=', 'API/device token or session', 'List recent events, newest first.', ''),
+    ('GET',  '/api/events/&lt;id&gt;', 'API/device token or session', 'One event with its delivery records.', ''),
+    ('POST', '/api/devices/register', 'enrollment token (in body)', 'Register a phone; returns the permanent device bearer token.',
+     '{"enrollment_token": "…", "name": "Andrew\'s iPhone", "apns_token": "…"}'),
+    ('POST', '/api/devices/token', 'device token', 'Update the APNs token after Apple rotates it.', '{"apns_token": "…"}'),
+    ('POST', '/api/devices/settings', 'device token', 'Update per-device name / minimum severity.', '{"min_severity": "error"}'),
+    ('GET',  '/api/autoconfig/&lt;enrollment_token&gt;', 'enrollment token (in URL)', 'Auto-configuration payload for phone setup.', ''),
+    ('GET',  '/api/stream', 'API/device token or session', 'Server-Sent Events stream of new events (event type: "event").', ''),
+  ] %}
+  <div class="rounded-lg border border-slate-800 bg-slate-900 p-4">
+    <div class="flex items-center gap-3 flex-wrap">
+      <span class="text-xs font-bold rounded px-2 py-0.5 {{ 'bg-emerald-800' if method == 'GET' else 'bg-sky-800' }}">{{ method }}</span>
+      <code class="text-sm text-white">{{ path | safe }}</code>
+      <span class="ml-auto text-xs text-slate-500">auth: {{ auth_kind }}</span>
+    </div>
+    <p class="text-sm text-slate-400 mt-2">{{ desc }}</p>
+    {% if body %}<pre class="mt-2 bg-slate-800 rounded p-2 text-xs overflow-x-auto"><code>{{ body }}</code></pre>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<h2 class="text-lg font-semibold text-white mt-8 mb-2">ZeroMQ compatibility</h2>
+<p class="text-sm text-slate-400 max-w-3xl">When <code>zmq.enabled</code> is true the server also accepts events on
+ZeroMQ: SUB sockets connected to the endpoints in <code>zmq.connect</code> and a PULL socket bound at
+<code>zmq.bind</code>. JSON payloads use the same schema as <code>POST /api/events</code>; plain-text payloads
+become events with the configured default severity.</p>
+{% endblock %}

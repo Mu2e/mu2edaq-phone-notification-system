@@ -1,0 +1,37 @@
+.TH MU2EDAQ_NOTIFY_CPP 3 "July 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+mu2edaq_notify_cpp \- C++17 publisher library for the Mu2e DAQ
+notification server
+.SH SYNOPSIS
+.nf
+#include <mu2edaq_notify/notify.hpp>
+// link: -lmu2edaq_notify -lcurl   (CMake: mu2edaq::notify)
+
+mu2edaq::notify::Options opts;   // server_url, token, source, host,
+                                 // timeout_ms, discover
+mu2edaq::notify::Publisher pub(opts);
+bool ok = pub.publish(severity, title, message, meta);
+pub.debug(t,m)  pub.info(t,m)  pub.warning(t,m)
+pub.error(t,m)  pub.critical(t,m)
+
+std::string url = mu2edaq::notify::discover_server(timeout_s);
+.fi
+.SH DESCRIPTION
+Publishes events over HTTP using libcurl. Server resolution order:
+Options::server_url, $MU2EDAQ_NOTIFY_URL, then a mu2edaq-discovery
+multicast query (UDP 239.255.42.99:28999, filter app=notify) when
+Options::discover is true. The bearer token comes from Options::token
+or $MU2EDAQ_NOTIFY_TOKEN.
+.PP
+publish() returns true when the server accepted the event; it never
+throws on delivery failure. Meta is a
+std::map<std::string,std::string>.
+.SH BUILDING
+.nf
+cmake -S . -B build && cmake --build build
+ctest --test-dir build     # CppUnit tests when CppUnit is installed
+.fi
+Works on Linux, macOS, and Windows 11 (MSVC; links ws2_32
+automatically).
+.SH SEE ALSO
+mu2edaq_notify(3), mu2edaq-notify-server(1)

@@ -1,0 +1,13 @@
+# Runtime
+Flask>=2.0
+PyYAML>=5.4
+SQLAlchemy>=1.4
+httpx[http2]>=0.23
+PyJWT>=2.4
+cryptography>=3.4
+segno>=1.5
+# Optional integrations (installed by default for the server host)
+Authlib>=1.0
+pyzmq>=22
+# Development / tests
+pytest>=7

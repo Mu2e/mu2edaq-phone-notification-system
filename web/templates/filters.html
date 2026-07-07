@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Filters · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<h1 class="text-xl font-semibold text-white mb-4">Notification filters</h1>
+<p class="text-sm text-slate-400 mb-4">Events matching an enabled filter are delivered to that filter's destinations.
+A filter matches when the event severity is at or above <em>min severity</em> and the source/host glob patterns
+(and optional message regex) match.</p>
+
+<div class="rounded-lg border border-slate-800 bg-slate-900 overflow-x-auto mb-6">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500 border-b border-slate-800">
+      <th class="p-2">Name</th><th class="p-2">Min severity</th><th class="p-2">Source</th>
+      <th class="p-2">Host</th><th class="p-2">Message regex</th><th class="p-2">Destinations</th>
+      <th class="p-2">Enabled</th><th class="p-2"></th></tr></thead>
+    <tbody>
+      {% for f in filters %}
+      <tr class="border-b border-slate-800/50 {{ '' if f.enabled else 'opacity-50' }}">
+        <td class="p-2 font-medium text-white">{{ f.name }}</td>
+        <td class="p-2"><span class="sev-{{ f.min_severity }}">{{ f.min_severity }}</span></td>
+        <td class="p-2 font-mono text-xs">{{ f.source_pattern }}</td>
+        <td class="p-2 font-mono text-xs">{{ f.host_pattern }}</td>
+        <td class="p-2 font-mono text-xs">{{ f.message_regex or '—' }}</td>
+        <td class="p-2">{{ f.destinations | join(', ') or '—' }}</td>
+        <td class="p-2">
+          <form method="post" action="{{ url_for('web.toggle_filter', filter_id=f.id) }}">
+            <button class="text-xs rounded px-2 py-0.5 {{ 'bg-emerald-700' if f.enabled else 'bg-slate-700' }}">{{ 'on' if f.enabled else 'off' }}</button>
+          </form>
+        </td>
+        <td class="p-2">
+          <form method="post" action="{{ url_for('web.delete_filter', filter_id=f.id) }}"
+                onsubmit="return confirm('Delete filter {{ f.name }}?')">
+            <button class="text-xs text-red-400 hover:text-red-300">delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td class="p-3 text-slate-500" colspan="8">No filters defined — no notifications will be delivered.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-2">Add / update filter</h2>
+<form method="post" class="rounded-lg border border-slate-800 bg-slate-900 p-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+  <label class="block">Name<input name="name" required class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1"></label>
+  <label class="block">Min severity
+    <select name="min_severity" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1">
+      {% for s in SEVERITIES %}<option {{ 'selected' if s == 'error' }}>{{ s }}</option>{% endfor %}
+    </select></label>
+  <label class="block">Source pattern (glob)<input name="source_pattern" value="*" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-mono"></label>
+  <label class="block">Host pattern (glob)<input name="host_pattern" value="*" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-mono"></label>
+  <label class="block">Message regex (optional)<input name="message_regex" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-mono"></label>
+  <label class="block">Destinations
+    <select name="destinations" multiple class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 h-24">
+      {% for d in destinations %}<option value="{{ d.name }}">{{ d.name }} ({{ d.type }})</option>{% endfor %}
+    </select></label>
+  <div class="md:col-span-3">
+    <button class="bg-sky-600 hover:bg-sky-500 text-white rounded px-4 py-1.5">Save filter</button>
+  </div>
+</form>
+{% endblock %}

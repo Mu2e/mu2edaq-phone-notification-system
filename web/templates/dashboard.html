@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+  <h1 class="text-xl font-semibold text-white">Notification dashboard</h1>
+  <form method="post" action="{{ url_for('web.test_event') }}" class="flex gap-2">
+    <select name="severity" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm">
+      {% for s in SEVERITIES %}<option value="{{ s }}" {{ 'selected' if s == 'warning' }}>{{ s }}</option>{% endfor %}
+    </select>
+    <button class="bg-sky-600 hover:bg-sky-500 text-white text-sm rounded px-3 py-1">Send test event</button>
+  </form>
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+  {% for s in SEVERITIES %}
+  <a href="{{ url_for('web.dashboard', severity=s) }}"
+     class="rounded-lg border {{ 'ring-2 ring-sky-500' if active_severity == s else '' }} border-slate-800 bg-slate-900 p-3">
+    <div class="text-xs uppercase tracking-wide sev-{{ s }}">{{ s }}</div>
+    <div class="text-2xl font-bold text-white" id="count-{{ s }}">{{ counts.get(s, 0) }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+{% if active_severity %}
+<p class="mb-3 text-sm text-slate-400">Showing only <span class="sev-{{ active_severity }}">{{ active_severity }}</span>
+  — <a class="text-sky-400 hover:underline" href="{{ url_for('web.dashboard') }}">clear filter</a></p>
+{% endif %}
+
+<div id="event-list" class="space-y-2">
+  {% for e in events %}
+  <a href="{{ url_for('web.event_detail', event_id=e.id) }}"
+     class="block rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800/70 p-3">
+    <div class="flex items-center gap-3 flex-wrap">
+      <span class="text-xs font-bold uppercase border rounded px-1.5 py-0.5 sev-{{ e.severity }}">{{ e.severity }}</span>
+      <span class="font-medium text-white">{{ e.title }}</span>
+      <span class="ml-auto text-xs text-slate-500">{{ e.received_at }}</span>
+    </div>
+    <div class="text-sm text-slate-400 mt-1 truncate">{{ e.message }}</div>
+    <div class="text-xs text-slate-500 mt-1">{{ e.source }} @ {{ e.host }}</div>
+  </a>
+  {% else %}
+  <p class="text-slate-500">No events yet. Publish one with
+    <code class="bg-slate-800 rounded px-1">mu2edaq-notify send "Hello" "First event"</code>
+    or use the test button above.</p>
+  {% endfor %}
+</div>
+
+<script>
+  // Live updates: prepend new events pushed over SSE.
+  const list = document.getElementById('event-list');
+  const es = new EventSource('/api/stream');
+  es.addEventListener('event', (msg) => {
+    const e = JSON.parse(msg.data);
+    const active = {{ (active_severity or '') | tojson }};
+    if (active && e.severity !== active) return;
+    const a = document.createElement('a');
+    a.href = '/events/' + e.id;
+    a.className = 'block rounded-lg border border-sky-800 bg-slate-900 hover:bg-slate-800/70 p-3';
+    a.innerHTML =
+      '<div class="flex items-center gap-3 flex-wrap">' +
+      '<span class="text-xs font-bold uppercase border rounded px-1.5 py-0.5 sev-' + e.severity + '"></span>' +
+      '<span class="font-medium text-white"></span>' +
+      '<span class="ml-auto text-xs text-slate-500"></span></div>' +
+      '<div class="text-sm text-slate-400 mt-1 truncate"></div>' +
+      '<div class="text-xs text-slate-500 mt-1"></div>';
+    a.querySelector('.uppercase').textContent = e.severity;
+    a.querySelectorAll('span')[1].textContent = e.title;
+    a.querySelectorAll('span')[2].textContent = e.received_at;
+    a.querySelectorAll('div')[1].textContent = e.message;
+    a.querySelectorAll('div')[2].textContent = e.source + ' @ ' + e.host;
+    list.prepend(a);
+    const counter = document.getElementById('count-' + e.severity);
+    if (counter) counter.textContent = parseInt(counter.textContent || '0') + 1;
+  });
+</script>
+{% endblock %}

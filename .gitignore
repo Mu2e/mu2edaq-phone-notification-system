@@ -1,0 +1,13 @@
+venv/
+build/
+core/
+data/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.DS_Store
+config/apns_key.p8
+config/*.local.yaml
+ios/Mu2eNotify/Mu2eNotify.xcodeproj/
+ios/Mu2eNotify/DerivedData/

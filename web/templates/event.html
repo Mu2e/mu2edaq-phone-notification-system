@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Event {{ event.id }} · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<a href="{{ url_for('web.dashboard') }}" class="text-sm text-sky-400 hover:underline">&larr; Dashboard</a>
+<div class="mt-3 rounded-lg border border-slate-800 bg-slate-900 p-5">
+  <div class="flex items-center gap-3 flex-wrap">
+    <span class="text-xs font-bold uppercase border rounded px-1.5 py-0.5 sev-{{ event.severity }}">{{ event.severity }}</span>
+    <h1 class="text-lg font-semibold text-white">{{ event.title }}</h1>
+    <span class="ml-auto text-xs text-slate-500">#{{ event.id }}</span>
+  </div>
+  <p class="mt-3 text-slate-300 whitespace-pre-wrap">{{ event.message }}</p>
+  <dl class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+    <div class="flex gap-2"><dt class="text-slate-500 w-28">Source</dt><dd>{{ event.source }}</dd></div>
+    <div class="flex gap-2"><dt class="text-slate-500 w-28">Host</dt><dd>{{ event.host }}</dd></div>
+    <div class="flex gap-2"><dt class="text-slate-500 w-28">Event time</dt><dd>{{ event.timestamp }}</dd></div>
+    <div class="flex gap-2"><dt class="text-slate-500 w-28">Received</dt><dd>{{ event.received_at }}</dd></div>
+    {% for k, v in event.meta.items() %}
+    <div class="flex gap-2"><dt class="text-slate-500 w-28">{{ k }}</dt><dd>{{ v }}</dd></div>
+    {% endfor %}
+  </dl>
+</div>
+
+<h2 class="mt-6 mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Deliveries</h2>
+<div class="rounded-lg border border-slate-800 bg-slate-900 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500 border-b border-slate-800">
+      <th class="p-2">Destination</th><th class="p-2">Target</th><th class="p-2">Status</th><th class="p-2">Detail</th><th class="p-2">At</th></tr></thead>
+    <tbody>
+      {% for d in deliveries %}
+      <tr class="border-b border-slate-800/50">
+        <td class="p-2">{{ d.destination }}</td>
+        <td class="p-2">{{ d.target or '—' }}</td>
+        <td class="p-2 {{ 'text-emerald-400' if d.status == 'sent' else 'text-amber-400' if d.status in ('logged','suppressed') else 'text-red-400' }}">{{ d.status }}</td>
+        <td class="p-2 text-slate-400">{{ d.detail or '—' }}</td>
+        <td class="p-2 text-slate-500">{{ d.created_at }}</td>
+      </tr>
+      {% else %}
+      <tr><td class="p-3 text-slate-500" colspan="5">No deliveries (no filter matched, or dispatch pending).</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+# XcodeGen project definition for the Mu2e Notify iOS app.
+#
+#   brew install xcodegen
+#   cd ios/Mu2eNotify && xcodegen generate
+#   open Mu2eNotify.xcodeproj
+#
+# Set DEVELOPMENT_TEAM to your Apple Developer team ID before building
+# on a device. The bundle id must match apns.bundle_id in the server's
+# notify-server.yaml.
+
+name: Mu2eNotify
+options:
+  bundleIdPrefix: gov.fnal.mu2e
+  deploymentTarget:
+    iOS: "16.0"
+
+targets:
+  Mu2eNotify:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: gov.fnal.mu2e.Mu2eNotify
+        DEVELOPMENT_TEAM: ""           # <- your team ID
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Mu2e Notify
+        NSCameraUsageDescription: >-
+          The camera is used to scan the server enrollment QR code.
+        UIBackgroundModes: [remote-notification]
+    entitlements:
+      path: Sources/Mu2eNotify.entitlements
+      properties:
+        aps-environment: development   # switch to production for release
+
+  Mu2eNotifyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: Mu2eNotify

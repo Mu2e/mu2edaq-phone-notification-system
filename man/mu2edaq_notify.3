@@ -1,0 +1,39 @@
+.TH MU2EDAQ_NOTIFY 3 "July 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+mu2edaq_notify \- Python publisher library for the Mu2e DAQ notification
+server
+.SH SYNOPSIS
+.nf
+from mu2edaq_notify import NotifyPublisher, publish_event
+
+pub = NotifyPublisher(server_url=None, token=None, source=None,
+                      host=None, timeout=5.0, discover=True)
+pub.publish(severity, title, message="", source=None, meta=None)
+pub.debug(title, ...)  pub.info(...)  pub.warning(...)
+pub.error(...)         pub.critical(...)
+
+publish_event(severity, title, message="", **kwargs)
+.fi
+.SH DESCRIPTION
+Standard-library-only client for publishing events. The server address
+resolves in order: constructor argument, $MU2EDAQ_NOTIFY_URL, then a
+mu2edaq-discovery multicast query (filter app=notify) when
+\fBdiscover\fR is true. The bearer token comes from the constructor or
+$MU2EDAQ_NOTIFY_TOKEN.
+.PP
+\fBpublish()\fR returns True when the server accepted the event and
+False otherwise. It never raises on delivery failure: publishing a
+notification must not be able to take down a DAQ application.
+.SH EVENT FIELDS
+severity (debug|info|warning|error|critical), title (<=200 chars),
+message (<=4000 chars), source, host (defaults to the local hostname),
+meta (string map).
+.SH EXAMPLE
+.nf
+from mu2edaq_notify import NotifyPublisher
+pub = NotifyPublisher(token="api-token", source="dtc-monitor")
+pub.error("DTC link down", "ROC link 3 lost lock",
+          meta={"run": "107001"})
+.fi
+.SH SEE ALSO
+mu2edaq-notify(1), mu2edaq_notify_cpp(3)

@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mu2edaq-notify"
+version = "0.1.0"
+description = "Mu2e DAQ phone push notification system: server, publisher library, and integrations"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "BSD-3-Clause" }
+authors = [{ name = "Mu2e DAQ Group" }]
+dependencies = [
+    "Flask>=2.0",
+    "PyYAML>=5.4",
+    "SQLAlchemy>=1.4",
+    "httpx[http2]>=0.23",
+    "PyJWT>=2.4",
+    "cryptography>=3.4",
+    "segno>=1.5",
+]
+
+[project.optional-dependencies]
+oidc = ["Authlib>=1.0"]
+zmq = ["pyzmq>=22"]
+postgres = ["psycopg2-binary>=2.9"]
+dev = ["pytest>=7", "Authlib>=1.0", "pyzmq>=22"]
+
+[project.scripts]
+mu2edaq-notify-server = "mu2edaq_notify.server.cli:main"
+mu2edaq-notify = "mu2edaq_notify.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

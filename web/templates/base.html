@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Mu2e DAQ Notify{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <style>
+    body { background: #0b1220; }
+    .sev-debug    { color:#8e8e93; border-color:#8e8e93; }
+    .sev-info     { color:#60a5fa; border-color:#60a5fa; }
+    .sev-warning  { color:#fbbf24; border-color:#fbbf24; }
+    .sev-error    { color:#f87171; border-color:#f87171; }
+    .sev-critical { color:#c084fc; border-color:#c084fc; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-200 antialiased">
+  <nav class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6 flex-wrap">
+      <a href="{{ url_for('web.dashboard') }}" class="font-bold text-lg tracking-tight text-white">
+        <span class="text-sky-400">Mu2e</span> DAQ Notify
+      </a>
+      {% for label, endpoint in [('Dashboard','web.dashboard'),('Filters','web.filters_page'),
+                                 ('Destinations','web.destinations_page'),('Devices','web.devices_page'),
+                                 ('About','web.about'),('API','web.api_docs'),('Sitemap','web.sitemap')] %}
+        <a href="{{ url_for(endpoint) }}"
+           class="text-sm {{ 'text-white font-semibold' if request.endpoint == endpoint else 'text-slate-400 hover:text-white' }}">{{ label }}</a>
+      {% endfor %}
+      <div class="ml-auto text-xs text-slate-500 flex items-center gap-3">
+        {% if current_user %}
+          <span>{{ current_user.get('email') or current_user.get('preferred_username') }}</span>
+          <a href="{{ url_for('web.logout') }}" class="hover:text-white">Sign out</a>
+        {% elif oidc_enabled %}
+          <a href="{{ url_for('web.login') }}" class="hover:text-white">Sign in</a>
+        {% endif %}
+        <span>v{{ version }}</span>
+      </div>
+    </div>
+  </nav>
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

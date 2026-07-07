@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Enroll device · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<a href="{{ url_for('web.devices_page') }}" class="text-sm text-sky-400 hover:underline">&larr; Devices</a>
+<div class="mt-3 rounded-lg border border-slate-800 bg-slate-900 p-6 max-w-2xl">
+  <h1 class="text-xl font-semibold text-white mb-2">Enroll a phone</h1>
+  <p class="text-sm text-slate-400 mb-4">Open the <strong>Mu2e Notify</strong> app on the phone, choose
+    <em>Scan QR code</em>, and point the camera here. The code contains the server address and a one-time
+    enrollment token valid for {{ ttl_minutes }} minutes.</p>
+  <div class="bg-white rounded-lg p-4 inline-block">
+    <img src="{{ url_for('web.enrollment_qr', token=token) }}" alt="Enrollment QR code" width="260" height="260">
+  </div>
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-400 mt-6 mb-2">Manual / auto-configuration</h2>
+  <p class="text-sm text-slate-400 mb-2">The app can also fetch its configuration from this one-time URL
+    (or you can paste it into the app's manual setup screen):</p>
+  <code class="block bg-slate-800 rounded p-2 text-xs break-all">{{ autoconfig_url }}</code>
+</div>
+{% endblock %}

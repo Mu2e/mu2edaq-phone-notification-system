@@ -1,0 +1,88 @@
+# Mu2e DAQ Notification Server configuration.
+#
+# Precedence: command line > environment (MU2EDAQ_NOTIFY_*) > this file > defaults.
+# Point the server at a different file with --config or MU2EDAQ_NOTIFY_CONFIG.
+
+server:
+  host: 0.0.0.0
+  port: 8095
+  # External base URL used in QR codes and auto-configuration payloads.
+  # Leave empty to infer from the request.
+  base_url: ""
+  # Secret for Flask sessions (auto-generated and persisted in data/ if empty).
+  secret_key: ""
+
+database:
+  # SQLite by default; switch to Postgres with e.g.
+  #   url: postgresql+psycopg2://notify:PASS@dbhost/mu2enotify
+  url: "sqlite:///data/notify.db"
+  # Days of event history to keep (0 = keep forever).
+  retention_days: 30
+
+auth:
+  # Bearer tokens accepted from publishing applications (the client library).
+  # Add at least one before exposing the server. Example:
+  #   api_tokens: ["long-random-string"]
+  api_tokens: []
+  # Secret used to sign device enrollment tokens (auto-generated if empty).
+  enrollment_secret: ""
+  # Minutes an enrollment QR code / link stays valid.
+  enrollment_ttl_minutes: 30
+  oidc:
+    # Fermilab SSO (OpenID Connect) for the web interface.
+    enabled: false
+    issuer: "https://pingprod.fnal.gov"
+    client_id: ""
+    client_secret: ""
+    # Users allowed in (empty list = any authenticated user).
+    allowed_users: []
+
+apns:
+  # Apple Push Notification service. Until a key is configured the server
+  # runs in log-only mode: deliveries are recorded but not sent to Apple.
+  enabled: false
+  key_file: "config/apns_key.p8"   # ES256 auth key from developer.apple.com
+  key_id: ""
+  team_id: ""
+  bundle_id: "gov.fnal.mu2e.Mu2eNotify"
+  sandbox: true
+
+zmq:
+  # Compatibility listener for the existing Mu2e DAQ ZeroMQ publishing scheme
+  # (downtime-logger style). Accepts JSON events or plain-text messages.
+  enabled: false
+  # SUB socket endpoints to connect to (publishers bind):
+  connect: []
+  # Or bind a PULL socket that publishers PUSH to:
+  bind: "tcp://0.0.0.0:8096"
+  # Severity assigned to plain-text (non-JSON) messages.
+  default_severity: "warning"
+  default_source: "zmq"
+
+discovery:
+  # Announce this server via mu2edaq-discovery so publishers can find it.
+  enabled: true
+  name: "Mu2e DAQ Notification Server"
+  app: "notify"
+
+dispatch:
+  # Suppress identical (rule, source, title) deliveries within this window.
+  rate_limit_seconds: 60
+
+# Filters and destinations seeded into the database on first start.
+# After that, manage them in the web interface.
+seed:
+  destinations:
+    - name: "all-phones"
+      type: "apns"
+    # - name: "daq-slack"
+    #   type: "slack"
+    #   webhook_url: "https://hooks.slack.com/services/T000/B000/XXXX"
+    # - name: "daq-discord"
+    #   type: "discord"
+    #   webhook_url: "https://discord.com/api/webhooks/000/XXXX"
+  filters:
+    - name: "errors-to-phones"
+      min_severity: "error"
+      source_pattern: "*"
+      destinations: ["all-phones"]

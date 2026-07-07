@@ -1,0 +1,56 @@
+.TH MU2EDAQ-NOTIFY-SERVER 1 "July 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+mu2edaq-notify-server \- Mu2e DAQ notification server
+.SH SYNOPSIS
+.B mu2edaq-notify-server
+[\fB--config\fR \fIFILE\fR] [\fB--host\fR \fIADDR\fR] [\fB--port\fR \fIPORT\fR]
+[\fB--db-url\fR \fIURL\fR] [\fB--base-url\fR \fIURL\fR]
+[\fB--api-token\fR \fITOKEN\fR]... [\fB--zmq\fR|\fB--no-zmq\fR]
+[\fB--no-discovery\fR] [\fB--debug\fR] [\fB--version\fR]
+.SH DESCRIPTION
+Receives error/warning events from Mu2e DAQ applications (HTTP JSON API,
+optional ZeroMQ compatibility listener), filters them through configurable
+rules, and delivers push notifications to registered iPhones via APNs and
+to Slack and Discord webhooks. Serves a web interface for viewing events
+and managing filters, destinations, and device enrollment (QR code).
+Announces itself with the mu2edaq-discovery protocol so publishers can
+find it automatically.
+.SH OPTIONS
+.TP
+.B --config FILE
+YAML configuration file (default: $MU2EDAQ_NOTIFY_CONFIG).
+.TP
+.B --host ADDR, --port PORT
+Bind address and port (default 0.0.0.0:8095).
+.TP
+.B --db-url URL
+SQLAlchemy database URL. SQLite by default; use a
+postgresql+psycopg2:// URL for Postgres.
+.TP
+.B --base-url URL
+External base URL embedded in QR codes and auto-configuration payloads.
+.TP
+.B --api-token TOKEN
+Add a publisher bearer token (repeatable).
+.TP
+.B --zmq / --no-zmq
+Enable/disable the ZeroMQ compatibility listener.
+.TP
+.B --no-discovery
+Do not announce via mu2edaq-discovery.
+.TP
+.B --debug
+Flask debug mode (development only).
+.SH ENVIRONMENT
+MU2EDAQ_NOTIFY_CONFIG, MU2EDAQ_NOTIFY_HOST, MU2EDAQ_NOTIFY_PORT,
+MU2EDAQ_NOTIFY_BASE_URL, MU2EDAQ_NOTIFY_DB_URL, MU2EDAQ_NOTIFY_API_TOKEN,
+MU2EDAQ_NOTIFY_APNS_ENABLED, MU2EDAQ_NOTIFY_ZMQ_ENABLED,
+MU2EDAQ_NOTIFY_ZMQ_BIND, MU2EDAQ_NOTIFY_DISCOVERY_ENABLED.
+Precedence: command line > environment > config file > defaults.
+.SH FILES
+config/notify-server.yaml (configuration),
+config/apns_key.p8 (APNs ES256 auth key, not committed),
+data/notify.db (SQLite database).
+.SH SEE ALSO
+mu2edaq-notify(1), mu2edaq_notify(3), mu2edaq_notify_cpp(3),
+mu2edaq-discover(1)

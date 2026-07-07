@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Destinations · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<h1 class="text-xl font-semibold text-white mb-4">Destinations</h1>
+<p class="text-sm text-slate-400 mb-4">Where matched notifications go: <strong>apns</strong> pushes to every
+enabled registered iPhone, <strong>slack</strong> and <strong>discord</strong> post to an incoming-webhook URL.</p>
+
+<div class="rounded-lg border border-slate-800 bg-slate-900 overflow-x-auto mb-6">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500 border-b border-slate-800">
+      <th class="p-2">Name</th><th class="p-2">Type</th><th class="p-2">Webhook</th>
+      <th class="p-2">Enabled</th><th class="p-2"></th></tr></thead>
+    <tbody>
+      {% for d in destinations %}
+      <tr class="border-b border-slate-800/50 {{ '' if d.enabled else 'opacity-50' }}">
+        <td class="p-2 font-medium text-white">{{ d.name }}</td>
+        <td class="p-2">{{ d.type }}</td>
+        <td class="p-2 font-mono text-xs truncate max-w-xs">{{ d.webhook_url[:60] ~ '…' if d.webhook_url|length > 60 else d.webhook_url or '—' }}</td>
+        <td class="p-2">
+          <form method="post" action="{{ url_for('web.toggle_destination', dest_id=d.id) }}">
+            <button class="text-xs rounded px-2 py-0.5 {{ 'bg-emerald-700' if d.enabled else 'bg-slate-700' }}">{{ 'on' if d.enabled else 'off' }}</button>
+          </form>
+        </td>
+        <td class="p-2">
+          <form method="post" action="{{ url_for('web.delete_destination', dest_id=d.id) }}"
+                onsubmit="return confirm('Delete destination {{ d.name }}?')">
+            <button class="text-xs text-red-400 hover:text-red-300">delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td class="p-3 text-slate-500" colspan="5">No destinations defined.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-2">Add / update destination</h2>
+<form method="post" class="rounded-lg border border-slate-800 bg-slate-900 p-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+  <label class="block">Name<input name="name" required class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1"></label>
+  <label class="block">Type
+    <select name="type" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1">
+      <option value="apns">apns (iPhones)</option>
+      <option value="slack">slack</option>
+      <option value="discord">discord</option>
+    </select></label>
+  <label class="block">Webhook URL (slack/discord)
+    <input name="webhook_url" placeholder="https://hooks.slack.com/…" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-mono"></label>
+  <div class="md:col-span-3">
+    <button class="bg-sky-600 hover:bg-sky-500 text-white rounded px-4 py-1.5">Save destination</button>
+  </div>
+</form>
+{% endblock %}

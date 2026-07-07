@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Sitemap · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<h1 class="text-xl font-semibold text-white mb-4">Sitemap</h1>
+<div class="rounded-lg border border-slate-800 bg-slate-900 p-6 max-w-2xl text-sm">
+  <ul class="space-y-2">
+    <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.dashboard') }}">/ — Dashboard</a>
+      <span class="text-slate-500">— live event feed, severity counters, test-event button</span>
+      <ul class="ml-6 mt-1 text-slate-400"><li>/events/&lt;id&gt; — event detail with delivery log</li></ul></li>
+    <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.filters_page') }}">/filters — Filters</a>
+      <span class="text-slate-500">— routing rules from events to destinations</span></li>
+    <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.destinations_page') }}">/destinations — Destinations</a>
+      <span class="text-slate-500">— iPhone push, Slack, and Discord targets</span></li>
+    <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.devices_page') }}">/devices — Devices</a>
+      <span class="text-slate-500">— registered phones and QR enrollment</span>
+      <ul class="ml-6 mt-1 text-slate-400"><li>/devices/enroll — QR code + auto-configuration link</li></ul></li>
+    <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.about') }}">/about — About</a>
+      <span class="text-slate-500">— project description and dependencies</span></li>
+    <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.api_docs') }}">/api-docs — API</a>
+      <span class="text-slate-500">— HTTP API and ZeroMQ ingestion reference</span></li>
+    <li><span class="text-white">/api/*</span>
+      <span class="text-slate-500">— JSON API (see the API page)</span></li>
+    <li><span class="text-white">/login, /auth, /logout</span>
+      <span class="text-slate-500">— Fermilab SSO (OIDC) session management</span></li>
+  </ul>
+</div>
+{% endblock %}

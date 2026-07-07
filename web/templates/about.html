@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}About · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<h1 class="text-xl font-semibold text-white mb-4">About</h1>
+<div class="rounded-lg border border-slate-800 bg-slate-900 p-6 max-w-3xl space-y-4 text-sm text-slate-300">
+  <p><strong class="text-white">Mu2e DAQ Notify</strong> (v{{ version }}) collects error and warning events
+  from Mu2e DAQ applications, filters them, and pushes notifications to registered iPhones (via Apple Push
+  Notification service), Slack, and Discord. Events arrive over an HTTP JSON API or the DAQ's existing ZeroMQ
+  publishing scheme, and the server announces itself on the DAQ network with the mu2edaq-discovery protocol.</p>
+
+  <h2 class="text-white font-semibold">Server dependencies</h2>
+  <ul class="list-disc list-inside space-y-1">
+    <li><a class="text-sky-400" href="https://flask.palletsprojects.com/">Flask</a> — web framework (BSD-3)</li>
+    <li><a class="text-sky-400" href="https://www.sqlalchemy.org/">SQLAlchemy</a> — database layer, SQLite by default with Postgres hooks (MIT)</li>
+    <li><a class="text-sky-400" href="https://pyyaml.org/">PyYAML</a> — YAML configuration (MIT)</li>
+    <li><a class="text-sky-400" href="https://www.python-httpx.org/">httpx</a> with HTTP/2 — APNs and webhook delivery (BSD-3)</li>
+    <li><a class="text-sky-400" href="https://pyjwt.readthedocs.io/">PyJWT</a> + <a class="text-sky-400" href="https://cryptography.io/">cryptography</a> — APNs provider tokens and enrollment tokens</li>
+    <li><a class="text-sky-400" href="https://github.com/heuer/segno">segno</a> — QR code generation (BSD-3)</li>
+    <li><a class="text-sky-400" href="https://authlib.org/">Authlib</a> — Fermilab SSO / OpenID Connect (BSD-3, optional)</li>
+    <li><a class="text-sky-400" href="https://pyzmq.readthedocs.io/">pyzmq</a> — ZeroMQ compatibility listener (BSD-3, optional)</li>
+  </ul>
+
+  <h2 class="text-white font-semibold">Web interface dependencies</h2>
+  <ul class="list-disc list-inside space-y-1">
+    <li><a class="text-sky-400" href="https://tailwindcss.com/">Tailwind CSS</a> (CDN) — styling</li>
+    <li><a class="text-sky-400" href="https://htmx.org/">htmx</a> (CDN) — partial page updates</li>
+    <li>Server-Sent Events — live dashboard push (no polling)</li>
+  </ul>
+
+  <h2 class="text-white font-semibold">Companion components</h2>
+  <ul class="list-disc list-inside space-y-1">
+    <li><code>mu2edaq_notify</code> Python publisher library (stdlib only) and <code>mu2edaq-notify</code> CLI</li>
+    <li><code>mu2edaq-notify-cpp</code> C++17 publisher library (libcurl)</li>
+    <li><strong>Mu2e Notify</strong> iOS application (SwiftUI)</li>
+    <li><a class="text-sky-400" href="https://github.com/Mu2e/mu2edaq-discovery">mu2edaq-discovery</a> — service auto-discovery</li>
+  </ul>
+</div>
+{% endblock %}

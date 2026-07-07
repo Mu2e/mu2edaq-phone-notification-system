@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Devices · Mu2e DAQ Notify{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+  <h1 class="text-xl font-semibold text-white">Registered devices</h1>
+  <form method="post" action="{{ url_for('web.enroll_device') }}">
+    <button class="bg-sky-600 hover:bg-sky-500 text-white text-sm rounded px-3 py-1.5">Enroll a new phone (QR)</button>
+  </form>
+</div>
+
+<div class="rounded-lg border border-slate-800 bg-slate-900 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500 border-b border-slate-800">
+      <th class="p-2">Name</th><th class="p-2">Min severity</th><th class="p-2">APNs token</th>
+      <th class="p-2">Registered</th><th class="p-2">Last seen</th><th class="p-2">Enabled</th><th class="p-2"></th></tr></thead>
+    <tbody>
+      {% for d in devices %}
+      <tr class="border-b border-slate-800/50 {{ '' if d.enabled else 'opacity-50' }}">
+        <td class="p-2 font-medium text-white">{{ d.name }}</td>
+        <td class="p-2"><span class="sev-{{ d.min_severity }}">{{ d.min_severity }}</span></td>
+        <td class="p-2">{{ '✓ set' if d.has_apns_token else '✗ missing' }}</td>
+        <td class="p-2 text-slate-500">{{ d.created_at }}</td>
+        <td class="p-2 text-slate-500">{{ d.last_seen }}</td>
+        <td class="p-2">
+          <form method="post" action="{{ url_for('web.toggle_device', device_id=d.id) }}">
+            <button class="text-xs rounded px-2 py-0.5 {{ 'bg-emerald-700' if d.enabled else 'bg-slate-700' }}">{{ 'on' if d.enabled else 'off' }}</button>
+          </form>
+        </td>
+        <td class="p-2">
+          <form method="post" action="{{ url_for('web.delete_device', device_id=d.id) }}"
+                onsubmit="return confirm('Remove device {{ d.name }}?')">
+            <button class="text-xs text-red-400 hover:text-red-300">remove</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td class="p-3 text-slate-500" colspan="7">No devices registered yet. Use “Enroll a new phone”.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

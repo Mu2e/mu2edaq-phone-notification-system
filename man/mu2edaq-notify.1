@@ -1,0 +1,42 @@
+.TH MU2EDAQ-NOTIFY 1 "July 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+mu2edaq-notify \- publish an event to the Mu2e DAQ notification server
+.SH SYNOPSIS
+.B mu2edaq-notify
+[\fB--server\fR \fIURL\fR] [\fB--token\fR \fITOKEN\fR] [\fB--no-discover\fR]
+.B send
+[\fB--severity\fR \fILEVEL\fR] [\fB--source\fR \fINAME\fR]
+[\fB--meta\fR \fIKEY=VALUE\fR]... \fITITLE\fR [\fIMESSAGE\fR]
+.br
+.B mu2edaq-notify
+[\fB--server\fR \fIURL\fR] [\fB--no-discover\fR]
+.B ping
+.SH DESCRIPTION
+Command-line publisher and diagnostic for the Mu2e DAQ notification
+system. \fBsend\fR publishes one event; \fBping\fR queries the server's
+health endpoint. When no server is given the address is taken from
+$MU2EDAQ_NOTIFY_URL or found via the mu2edaq-discovery multicast
+protocol.
+.SH OPTIONS
+.TP
+.B --severity LEVEL
+debug, info, warning (default), error, or critical.
+.TP
+.B --source NAME
+Publishing application name shown in the dashboard (default: cli).
+.TP
+.B --meta KEY=VALUE
+Attach metadata; repeatable.
+.SH EXAMPLES
+.nf
+mu2edaq-notify send --severity error --source dtc-monitor \\
+    --meta run=107001 "DTC link down" "ROC link 3 lost lock"
+mu2edaq-notify ping
+.fi
+.SH ENVIRONMENT
+MU2EDAQ_NOTIFY_URL, MU2EDAQ_NOTIFY_TOKEN.
+.SH EXIT STATUS
+0 on success, 1 when the event was not accepted or the server is
+unreachable, 2 on usage error.
+.SH SEE ALSO
+mu2edaq-notify-server(1), mu2edaq_notify(3)
