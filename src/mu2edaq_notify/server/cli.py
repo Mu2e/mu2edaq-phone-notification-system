@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import threading
 import time
 
@@ -28,6 +29,16 @@ def build_parser():
     p.add_argument("--port", type=int, help="bind port")
     p.add_argument("--db-url", help="SQLAlchemy database URL")
     p.add_argument("--base-url", help="external base URL for QR codes")
+    p.add_argument("--tls", dest="tls", action="store_true", default=None,
+                   help="serve HTTPS using server.tls settings")
+    p.add_argument("--no-tls", dest="tls", action="store_false",
+                   help="serve plain HTTP")
+    p.add_argument("--tls-cert", metavar="FILE",
+                   help="TLS certificate chain file")
+    p.add_argument("--tls-key", metavar="FILE", help="TLS private key file")
+    p.add_argument("--tls-adhoc", action="store_true",
+                   help="serve HTTPS with a temporary self-signed cert "
+                   "(development only)")
     p.add_argument("--api-token", action="append", dest="api_tokens",
                    metavar="TOKEN", help="add a publisher API token "
                    "(repeatable)")
@@ -52,6 +63,15 @@ def config_from_args(args):
         overrides.append((("server", "port"), args.port))
     if args.base_url:
         overrides.append((("server", "base_url"), args.base_url))
+    if args.tls is not None:
+        overrides.append((("server", "tls", "enabled"), args.tls))
+    if args.tls_cert:
+        overrides.append((("server", "tls", "cert_file"), args.tls_cert))
+    if args.tls_key:
+        overrides.append((("server", "tls", "key_file"), args.tls_key))
+    if args.tls_adhoc:
+        overrides.append((("server", "tls", "enabled"), True))
+        overrides.append((("server", "tls", "adhoc"), True))
     if args.db_url:
         overrides.append((("database", "url"), args.db_url))
     if args.api_tokens:
@@ -61,6 +81,28 @@ def config_from_args(args):
     if args.discovery is not None:
         overrides.append((("discovery", "enabled"), args.discovery))
     return load_config(config_file=args.config, overrides=overrides)
+
+
+def ssl_context_from_config(cfg):
+    tls = cfg["server"].get("tls", {})
+    if not tls.get("enabled"):
+        return None
+    if tls.get("adhoc"):
+        return "adhoc"
+
+    cert_file = tls.get("cert_file") or ""
+    key_file = tls.get("key_file") or ""
+    if not cert_file or not key_file:
+        raise ValueError("server.tls.enabled requires cert_file/key_file "
+                         "or adhoc: true")
+    for path in (cert_file, key_file):
+        if not os.path.exists(path):
+            raise ValueError("TLS file does not exist: %s" % path)
+    return (cert_file, key_file)
+
+
+def server_scheme(cfg):
+    return "https" if cfg["server"].get("tls", {}).get("enabled") else "http"
 
 
 def start_discovery(cfg):
@@ -74,7 +116,8 @@ def start_discovery(cfg):
         return None
     responder = Responder(name=cfg["discovery"].get("name", "notify"),
                           app=cfg["discovery"].get("app", "notify"),
-                          port=int(cfg["server"]["port"]), scheme="http")
+                          port=int(cfg["server"]["port"]),
+                          scheme=server_scheme(cfg))
     responder.start()
     log.info("discovery responder started (app=%s)",
              cfg["discovery"].get("app"))
@@ -131,13 +174,18 @@ def main(argv=None):
     if not cfg["auth"]["api_tokens"]:
         log.warning("no auth.api_tokens configured -- the event API is "
                     "open; add tokens before exposing this server")
-    log.info("mu2edaq-notify-server %s on %s:%s (db=%s, apns=%s)",
-             __version__, cfg["server"]["host"], cfg["server"]["port"],
+    ssl_context = ssl_context_from_config(cfg)
+    scheme = server_scheme(cfg)
+    log.info("mu2edaq-notify-server %s on %s://%s:%s "
+             "(db=%s, apns=%s)",
+             __version__, scheme, cfg["server"]["host"],
+             cfg["server"]["port"],
              cfg["database"]["url"],
              "enabled" if cfg["apns"].get("enabled") else "log-only")
     try:
         app.run(host=cfg["server"]["host"], port=int(cfg["server"]["port"]),
-                debug=args.debug, threaded=True, use_reloader=False)
+                debug=args.debug, threaded=True, use_reloader=False,
+                ssl_context=ssl_context)
     finally:
         if zmq_listener:
             zmq_listener.stop()

@@ -8,7 +8,15 @@ server:
   port: 8095
   # External base URL used in QR codes and auto-configuration payloads.
   # Leave empty to infer from the request.
-  base_url: ""
+  base_url: "https://notify.andrewnorman.org"
+  tls:
+    # Enable HTTPS directly in the built-in Flask server. For iPhones,
+    # use a certificate trusted by the phone. Ad-hoc/self-signed certs
+    # are only suitable for local testing unless explicitly trusted.
+    enabled: true
+    cert_file: "data/letsencrypt/live/kaon.andrewnorman.org/fullchain.pem"
+    key_file: "data/letsencrypt/live/kaon.andrewnorman.org/privkey.pem"
+    adhoc: false
   # Secret for Flask sessions (auto-generated and persisted in data/ if empty).
   secret_key: ""
 

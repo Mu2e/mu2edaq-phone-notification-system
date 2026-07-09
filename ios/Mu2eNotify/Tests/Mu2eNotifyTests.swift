@@ -50,4 +50,14 @@ final class Mu2eNotifyTests: XCTestCase {
         XCTAssertNil(EnrollmentConfig.parse(
             "{\"type\":\"other\",\"server_url\":\"x\",\"enrollment_token\":\"y\"}"))
     }
+
+    func testServerClientBuildsQueryURL() throws {
+        let client = ServerClient(baseURL: URL(string: "https://notify.example")!,
+                                  bearerToken: "token")
+        let url = try client.url(
+            path: "api/events",
+            queryItems: [URLQueryItem(name: "limit", value: "200")])
+        XCTAssertEqual(url.absoluteString,
+                       "https://notify.example/api/events?limit=200")
+    }
 }

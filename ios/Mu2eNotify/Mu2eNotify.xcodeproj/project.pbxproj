@@ -1,0 +1,505 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		111111111111111111111001 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222001 /* AppState.swift */; };
+		111111111111111111111002 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222002 /* DashboardView.swift */; };
+		111111111111111111111003 /* EventDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222003 /* EventDetailView.swift */; };
+		111111111111111111111004 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222004 /* Models.swift */; };
+		111111111111111111111005 /* Mu2eNotifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222005 /* Mu2eNotifyApp.swift */; };
+		111111111111111111111006 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222006 /* QRScannerView.swift */; };
+		111111111111111111111007 /* ServerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222007 /* ServerClient.swift */; };
+		111111111111111111111008 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222008 /* SettingsView.swift */; };
+		111111111111111111111009 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222009 /* SetupView.swift */; };
+		11111111111111111111100A /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22222222222222222222200A /* SplashView.swift */; };
+		11111111111111111111100B /* Mu2eNotifyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22222222222222222222200D /* Mu2eNotifyTests.swift */; };
+		11111111111111111111100C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 222222222222222222222010 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		333333333333333333333001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 444444444444444444444001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 555555555555555555555001;
+			remoteInfo = Mu2eNotify;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		222222222222222222222001 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		222222222222222222222002 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		222222222222222222222003 /* EventDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailView.swift; sourceTree = "<group>"; };
+		222222222222222222222004 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		222222222222222222222005 /* Mu2eNotifyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mu2eNotifyApp.swift; sourceTree = "<group>"; };
+		222222222222222222222006 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		222222222222222222222007 /* ServerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerClient.swift; sourceTree = "<group>"; };
+		222222222222222222222008 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		222222222222222222222009 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+		22222222222222222222200A /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
+		22222222222222222222200B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		22222222222222222222200C /* Mu2eNotify.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Mu2eNotify.entitlements; sourceTree = "<group>"; };
+		22222222222222222222200D /* Mu2eNotifyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mu2eNotifyTests.swift; sourceTree = "<group>"; };
+		22222222222222222222200E /* Mu2eNotify.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mu2eNotify.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		22222222222222222222200F /* Mu2eNotifyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Mu2eNotifyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		222222222222222222222010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		666666666666666666666001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		666666666666666666666002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		777777777777777777777001 = {
+			isa = PBXGroup;
+			children = (
+				777777777777777777777002 /* Sources */,
+				777777777777777777777003 /* Tests */,
+				777777777777777777777004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		777777777777777777777002 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				222222222222222222222001 /* AppState.swift */,
+				222222222222222222222002 /* DashboardView.swift */,
+				222222222222222222222003 /* EventDetailView.swift */,
+				222222222222222222222004 /* Models.swift */,
+				222222222222222222222005 /* Mu2eNotifyApp.swift */,
+				222222222222222222222006 /* QRScannerView.swift */,
+				222222222222222222222007 /* ServerClient.swift */,
+				222222222222222222222008 /* SettingsView.swift */,
+				222222222222222222222009 /* SetupView.swift */,
+				22222222222222222222200A /* SplashView.swift */,
+				222222222222222222222010 /* Assets.xcassets */,
+				22222222222222222222200B /* Info.plist */,
+				22222222222222222222200C /* Mu2eNotify.entitlements */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		777777777777777777777003 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				22222222222222222222200D /* Mu2eNotifyTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		777777777777777777777004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				22222222222222222222200E /* Mu2eNotify.app */,
+				22222222222222222222200F /* Mu2eNotifyTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		555555555555555555555001 /* Mu2eNotify */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 888888888888888888888001 /* Build configuration list for PBXNativeTarget "Mu2eNotify" */;
+			buildPhases = (
+				999999999999999999999001 /* Sources */,
+				666666666666666666666001 /* Frameworks */,
+				AAAAAAAAAAAAAAAAAAAAA001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Mu2eNotify;
+			productName = Mu2eNotify;
+			productReference = 22222222222222222222200E /* Mu2eNotify.app */;
+			productType = "com.apple.product-type.application";
+		};
+		555555555555555555555002 /* Mu2eNotifyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 888888888888888888888002 /* Build configuration list for PBXNativeTarget "Mu2eNotifyTests" */;
+			buildPhases = (
+				999999999999999999999002 /* Sources */,
+				666666666666666666666002 /* Frameworks */,
+				AAAAAAAAAAAAAAAAAAAAA002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BBBBBBBBBBBBBBBBBBBBB001 /* PBXTargetDependency */,
+			);
+			name = Mu2eNotifyTests;
+			productName = Mu2eNotifyTests;
+			productReference = 22222222222222222222200F /* Mu2eNotifyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		444444444444444444444001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					555555555555555555555001 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					555555555555555555555002 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 555555555555555555555001;
+					};
+				};
+			};
+			buildConfigurationList = 888888888888888888888003 /* Build configuration list for PBXProject "Mu2eNotify" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 777777777777777777777001;
+			productRefGroup = 777777777777777777777004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				555555555555555555555001 /* Mu2eNotify */,
+				555555555555555555555002 /* Mu2eNotifyTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AAAAAAAAAAAAAAAAAAAAA001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11111111111111111111100C /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAAAAAAAAAAAAAAAAAAAA002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		999999999999999999999001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				111111111111111111111001 /* AppState.swift in Sources */,
+				111111111111111111111002 /* DashboardView.swift in Sources */,
+				111111111111111111111003 /* EventDetailView.swift in Sources */,
+				111111111111111111111004 /* Models.swift in Sources */,
+				111111111111111111111005 /* Mu2eNotifyApp.swift in Sources */,
+				111111111111111111111006 /* QRScannerView.swift in Sources */,
+				111111111111111111111007 /* ServerClient.swift in Sources */,
+				111111111111111111111008 /* SettingsView.swift in Sources */,
+				111111111111111111111009 /* SetupView.swift in Sources */,
+				11111111111111111111100A /* SplashView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		999999999999999999999002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11111111111111111111100B /* Mu2eNotifyTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BBBBBBBBBBBBBBBBBBBBB001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 555555555555555555555001 /* Mu2eNotify */;
+			targetProxy = 333333333333333333333001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		CCCCCCCCCCCCCCCCCCCCC001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CCCCCCCCCCCCCCCCCCCCC002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CCCCCCCCCCCCCCCCCCCCC003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Sources/Mu2eNotify.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = H7PRZ8RA2Z;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/Info.plist;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = gov.fnal.mu2e.Mu2eNotify;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		CCCCCCCCCCCCCCCCCCCCC004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Sources/Mu2eNotify.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = H7PRZ8RA2Z;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/Info.plist;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = gov.fnal.mu2e.Mu2eNotify;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CCCCCCCCCCCCCCCCCCCCC005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = gov.fnal.mu2e.Mu2eNotifyTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mu2eNotify.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Mu2eNotify";
+			};
+			name = Debug;
+		};
+		CCCCCCCCCCCCCCCCCCCCC006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = gov.fnal.mu2e.Mu2eNotifyTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mu2eNotify.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Mu2eNotify";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		888888888888888888888001 /* Build configuration list for PBXNativeTarget "Mu2eNotify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCCCCCCCCCCCCCCCCCCCC003 /* Debug */,
+				CCCCCCCCCCCCCCCCCCCCC004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		888888888888888888888002 /* Build configuration list for PBXNativeTarget "Mu2eNotifyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCCCCCCCCCCCCCCCCCCCC005 /* Debug */,
+				CCCCCCCCCCCCCCCCCCCCC006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		888888888888888888888003 /* Build configuration list for PBXProject "Mu2eNotify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CCCCCCCCCCCCCCCCCCCCC001 /* Debug */,
+				CCCCCCCCCCCCCCCCCCCCC002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 444444444444444444444001 /* Project object */;
+}

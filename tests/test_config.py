@@ -4,6 +4,7 @@ from mu2edaq_notify.server.config import load_config
 def test_defaults():
     cfg = load_config(environ={})
     assert cfg["server"]["port"] == 8095
+    assert cfg["server"]["tls"]["enabled"] is False
     assert cfg["database"]["url"].startswith("sqlite:///")
     assert cfg["server"]["secret_key"]          # auto-generated
     assert cfg["auth"]["enrollment_secret"]     # auto-generated
@@ -45,3 +46,14 @@ def test_config_file_from_environment(tmp_path):
     path.write_text("server:\n  port: 9300\n")
     cfg = load_config(environ={"MU2EDAQ_NOTIFY_CONFIG": str(path)})
     assert cfg["server"]["port"] == 9300
+
+
+def test_tls_environment_overrides():
+    cfg = load_config(environ={
+        "MU2EDAQ_NOTIFY_TLS_ENABLED": "true",
+        "MU2EDAQ_NOTIFY_TLS_CERT_FILE": "cert.pem",
+        "MU2EDAQ_NOTIFY_TLS_KEY_FILE": "key.pem",
+    })
+    assert cfg["server"]["tls"]["enabled"] is True
+    assert cfg["server"]["tls"]["cert_file"] == "cert.pem"
+    assert cfg["server"]["tls"]["key_file"] == "key.pem"

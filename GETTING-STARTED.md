@@ -298,10 +298,24 @@ auth:
 ```
 
 With OIDC enabled, all web pages and unauthenticated API reads require
-sign-in; publishers and phones keep using their bearer tokens. If you
-put the server behind TLS (recommended once it is reachable off the DAQ
-network — a reverse proxy like nginx/caddy is the easy path), update
-`server.base_url` to the `https://` URL before enrolling phones.
+sign-in; publishers and phones keep using their bearer tokens. iOS App
+Transport Security also requires HTTPS for phone enrollment. Either put
+the server behind TLS (a reverse proxy like nginx/caddy is the easy path)
+or enable TLS in the built-in server:
+
+```yaml
+server:
+  base_url: "https://your-hostname:8095"
+  tls:
+    enabled: true
+    cert_file: "config/tls.crt"
+    key_file: "config/tls.key"
+```
+
+Use a certificate trusted by the iPhone. `--tls-adhoc` starts HTTPS with
+a temporary self-signed certificate for quick browser testing, but the
+iPhone will not accept it unless that certificate is trusted on the
+device.
 
 ## 10. Tests
 

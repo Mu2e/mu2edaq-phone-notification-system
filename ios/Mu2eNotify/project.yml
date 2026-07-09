@@ -25,6 +25,7 @@ targets:
         DEVELOPMENT_TEAM: ""           # <- your team ID
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
     info:
       path: Sources/Info.plist

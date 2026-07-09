@@ -19,6 +19,12 @@ DEFAULTS = {
         "port": 8095,
         "base_url": "",
         "secret_key": "",
+        "tls": {
+            "enabled": False,
+            "cert_file": "",
+            "key_file": "",
+            "adhoc": False,
+        },
     },
     "database": {
         "url": "sqlite:///data/notify.db",
@@ -71,6 +77,10 @@ ENV_MAP = {
     "MU2EDAQ_NOTIFY_HOST": ("server", "host"),
     "MU2EDAQ_NOTIFY_PORT": ("server", "port"),
     "MU2EDAQ_NOTIFY_BASE_URL": ("server", "base_url"),
+    "MU2EDAQ_NOTIFY_TLS_ENABLED": ("server", "tls", "enabled"),
+    "MU2EDAQ_NOTIFY_TLS_CERT_FILE": ("server", "tls", "cert_file"),
+    "MU2EDAQ_NOTIFY_TLS_KEY_FILE": ("server", "tls", "key_file"),
+    "MU2EDAQ_NOTIFY_TLS_ADHOC": ("server", "tls", "adhoc"),
     "MU2EDAQ_NOTIFY_DB_URL": ("database", "url"),
     "MU2EDAQ_NOTIFY_API_TOKEN": ("auth", "api_tokens"),
     "MU2EDAQ_NOTIFY_APNS_ENABLED": ("apns", "enabled"),

@@ -40,13 +40,37 @@ cp config/notify-server.yaml config/notify-server.local.yaml   # optional
 ./stop-mu2edaq-notify-server.sh
 ```
 
-Web interface: `http://<host>:8095/`. Configuration precedence:
+Web interface: `http://<host>:8095/` by default, or
+`https://<host>:8095/` when `server.tls.enabled: true`.
+Configuration precedence:
 command line > `MU2EDAQ_NOTIFY_*` environment > YAML > defaults
 (see `man ./man/mu2edaq-notify-server.1`).
 
 Before exposing the server, set at least one publisher token in
 `auth.api_tokens`. The database is SQLite (`data/notify.db`) by default;
 point `database.url` at `postgresql+psycopg2://…` to use Postgres.
+
+### HTTPS / phone enrollment
+
+iOS App Transport Security requires HTTPS for the QR enrollment URL.
+Either run behind a trusted reverse proxy, or configure the built-in
+server with a certificate trusted by the phone:
+
+```yaml
+server:
+  base_url: "https://your-hostname:8095"
+  tls:
+    enabled: true
+    cert_file: "config/tls.crt"
+    key_file: "config/tls.key"
+```
+
+For temporary browser testing only:
+
+```bash
+./start-mu2edaq-notify-server.sh --tls-adhoc \
+  --base-url https://your-hostname:8095
+```
 
 ### Fermilab SSO
 
@@ -119,3 +143,9 @@ Man pages in `man/`: `mu2edaq-notify-server(1)`, `mu2edaq-notify(1)`,
 `mu2edaq_notify(3)` (Python API), `mu2edaq_notify_cpp(3)` (C++ API).
 The web interface has About, API, and Sitemap pages. The original
 specification is `PhonePushNotificationSpecifications.md`.
+
+Reverse-proxy and phone access docs:
+
+- `docs/reverse-proxy-setup.md` - AWS EC2, Route 53, Caddy, tunnel setup.
+- `docs/reverse-proxy-operations.md` - start/stop/status runbook and troubleshooting.
+- `docs/application-chain.md` - end-to-end publishing, registration, proxy, and APNS chain.

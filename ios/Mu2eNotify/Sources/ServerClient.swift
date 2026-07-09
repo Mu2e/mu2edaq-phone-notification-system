@@ -7,17 +7,43 @@ struct ServerClient {
 
     enum ClientError: LocalizedError {
         case badStatus(Int, String)
+        case badURL
         var errorDescription: String? {
             if case let .badStatus(code, body) = self {
                 return "Server returned \(code): \(body)"
+            }
+            if case .badURL = self {
+                return "Could not build server URL"
             }
             return nil
         }
     }
 
+    func url(path: String, queryItems: [URLQueryItem] = []) throws -> URL {
+        var url = baseURL
+        for part in path.split(separator: "/") {
+            url.appendPathComponent(String(part))
+        }
+        if queryItems.isEmpty {
+            return url
+        }
+        guard var components = URLComponents(url: url,
+                                             resolvingAgainstBaseURL: false)
+        else {
+            throw ClientError.badURL
+        }
+        components.queryItems = queryItems
+        guard let built = components.url else {
+            throw ClientError.badURL
+        }
+        return built
+    }
+
     private func request(_ path: String, method: String = "GET",
+                         queryItems: [URLQueryItem] = [],
                          json: [String: Any]? = nil) async throws -> Data {
-        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+        var req = URLRequest(url: try url(path: path,
+                                          queryItems: queryItems))
         req.httpMethod = method
         req.timeoutInterval = 15
         if let token = bearerToken {
@@ -53,7 +79,10 @@ struct ServerClient {
     }
 
     func fetchEvents(limit: Int = 200) async throws -> [NotifyEvent] {
-        let data = try await request("api/events?limit=\(limit)")
+        let data = try await request(
+            "api/events",
+            queryItems: [URLQueryItem(name: "limit",
+                                      value: String(limit))])
         return try JSONDecoder().decode(EventListResponse.self,
                                         from: data).events
     }
