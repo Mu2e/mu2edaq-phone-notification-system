@@ -4,7 +4,8 @@ import threading
 import pytest
 from werkzeug.serving import make_server
 
-from mu2edaq_notify.publisher import NotifyPublisher, publish_event
+from mu2edaq_notify.publisher import (NotifyPublisher, https_context,
+                                      publish_event)
 
 
 @pytest.fixture
@@ -51,3 +52,8 @@ def test_env_configuration(live_server, storage, monkeypatch):
     monkeypatch.setenv("MU2EDAQ_NOTIFY_TOKEN", "test-api-token")
     pub = NotifyPublisher(discover=False)
     assert pub.critical("From env") is True
+
+
+def test_https_context_uses_certifi_when_available():
+    ctx = https_context()
+    assert ctx.verify_mode.name == "CERT_REQUIRED"

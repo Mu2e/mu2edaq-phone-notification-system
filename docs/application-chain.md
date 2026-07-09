@@ -100,19 +100,21 @@ events, but it will not send real push notifications.
 Use these scripts from the repo root:
 
 ```bash
-scripts/start-mu2edaq-notify-proxy.sh
+scripts/start-mu2edaq-notify-chain.sh
 scripts/status-mu2edaq-notify-proxy.sh
-scripts/stop-mu2edaq-notify-proxy.sh
+scripts/stop-mu2edaq-notify-chain.sh
 ```
 
-The older server-only scripts still exist:
+Lower-level scripts still exist for partial maintenance:
 
 ```bash
 ./start-mu2edaq-notify-server.sh
 ./stop-mu2edaq-notify-server.sh
+scripts/start-mu2edaq-notify-proxy.sh
+scripts/stop-mu2edaq-notify-proxy.sh
 ```
 
-Use the proxy scripts when the phone app must reach the service through
+Use the full-chain scripts when the phone app must reach the service through
 `https://notify.andrewnorman.org`.
 
 ## Health Checks

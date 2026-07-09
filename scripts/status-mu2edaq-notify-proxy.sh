@@ -45,6 +45,6 @@ else
 fi
 
 if command -v curl >/dev/null 2>&1; then
-    http_code=$(curl -sS -o /dev/null -w "%{http_code}" "$PUBLIC_URL/api/health" 2>/dev/null)
+    http_code=$(curl --max-time 8 -sS -o /dev/null -w "%{http_code}" "$PUBLIC_URL/api/health" 2>/dev/null)
     echo "public health: HTTP ${http_code:-000} ($PUBLIC_URL/api/health)"
 fi

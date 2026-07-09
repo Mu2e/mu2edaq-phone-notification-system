@@ -68,3 +68,14 @@ def test_tls_environment_overrides():
     assert cfg["server"]["tls"]["enabled"] is True
     assert cfg["server"]["tls"]["cert_file"] == "cert.pem"
     assert cfg["server"]["tls"]["key_file"] == "key.pem"
+
+
+def test_discovery_advertisement_overrides():
+    cfg = load_config(environ={
+        "MU2EDAQ_NOTIFY_DISCOVERY_HOST": "notify.example",
+        "MU2EDAQ_NOTIFY_DISCOVERY_PORT": "443",
+        "MU2EDAQ_NOTIFY_DISCOVERY_SCHEME": "https",
+    })
+    assert cfg["discovery"]["host"] == "notify.example"
+    assert cfg["discovery"]["port"] == 443
+    assert cfg["discovery"]["scheme"] == "https"

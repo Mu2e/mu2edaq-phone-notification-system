@@ -114,13 +114,18 @@ def start_discovery(cfg):
     except ImportError:
         log.info("mu2edaq-discovery not installed; not announcing")
         return None
-    responder = Responder(name=cfg["discovery"].get("name", "notify"),
-                          app=cfg["discovery"].get("app", "notify"),
-                          port=int(cfg["server"]["port"]),
-                          scheme=server_scheme(cfg))
+    discovery = cfg["discovery"]
+    responder = Responder(name=discovery.get("name", "notify"),
+                          app=discovery.get("app", "notify"),
+                          host=discovery.get("host") or None,
+                          port=int(discovery.get("port")
+                                   or cfg["server"]["port"]),
+                          scheme=discovery.get("scheme")
+                          or server_scheme(cfg))
     responder.start()
-    log.info("discovery responder started (app=%s)",
-             cfg["discovery"].get("app"))
+    log.info("discovery responder started (app=%s, host=%s, port=%s)",
+             discovery.get("app"), discovery.get("host") or "<default>",
+             discovery.get("port") or cfg["server"]["port"])
     return responder
 
 

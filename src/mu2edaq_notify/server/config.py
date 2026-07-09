@@ -62,6 +62,9 @@ DEFAULTS = {
         "enabled": True,
         "name": "Mu2e DAQ Notification Server",
         "app": "notify",
+        "host": "",
+        "port": 0,
+        "scheme": "",
     },
     "dispatch": {
         "rate_limit_seconds": 60,
@@ -89,6 +92,9 @@ ENV_MAP = {
     "MU2EDAQ_NOTIFY_ZMQ_ENABLED": ("zmq", "enabled"),
     "MU2EDAQ_NOTIFY_ZMQ_BIND": ("zmq", "bind"),
     "MU2EDAQ_NOTIFY_DISCOVERY_ENABLED": ("discovery", "enabled"),
+    "MU2EDAQ_NOTIFY_DISCOVERY_HOST": ("discovery", "host"),
+    "MU2EDAQ_NOTIFY_DISCOVERY_PORT": ("discovery", "port"),
+    "MU2EDAQ_NOTIFY_DISCOVERY_SCHEME": ("discovery", "scheme"),
 }
 
 

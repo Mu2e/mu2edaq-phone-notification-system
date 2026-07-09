@@ -10,7 +10,7 @@ import sys
 import urllib.request
 
 from .events import SEVERITIES
-from .publisher import ENV_TOKEN, ENV_URL, NotifyPublisher
+from .publisher import ENV_TOKEN, ENV_URL, NotifyPublisher, https_context
 
 
 def main(argv=None):
@@ -50,7 +50,8 @@ def main(argv=None):
             return 1
         url = pub.server_url.rstrip("/") + "/api/health"
         try:
-            with urllib.request.urlopen(url, timeout=5) as resp:
+            with urllib.request.urlopen(
+                    url, timeout=5, context=https_context()) as resp:
                 print(json.dumps(json.load(resp), indent=2))
                 return 0
         except Exception as exc:

@@ -46,7 +46,7 @@ Security group intent:
 
 | Port | Source | Purpose |
 | --- | --- | --- |
-| `22/tcp` | trusted admin/local host IPs | SSH and reverse tunnel |
+| `22/tcp` | `0.0.0.0/0` | SSH and reverse tunnel from changing client IPs |
 | `80/tcp` | `0.0.0.0/0`, `::/0` | Let's Encrypt HTTP challenge and HTTP redirect |
 | `443/tcp` | `0.0.0.0/0`, `::/0` | public HTTPS endpoint |
 

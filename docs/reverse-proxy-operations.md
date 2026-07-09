@@ -8,66 +8,73 @@ Mu2e Notify public reverse-proxy chain.
 From the repo root:
 
 ```bash
-scripts/start-mu2edaq-notify-proxy.sh
+scripts/start-mu2edaq-notify-chain.sh
 ```
 
 The script:
 
-1. Starts the local notification server with `./start-mu2edaq-notify-server.sh --no-discovery`.
-2. Starts remote Caddy on EC2 with `sudo systemctl start caddy`.
-3. Starts the SSH reverse tunnel:
+1. Starts the EC2 proxy instance if it is stopped.
+2. Waits for EC2 instance and system status checks.
+3. Starts remote Caddy on EC2 with `sudo systemctl start caddy`.
+4. Starts the SSH reverse tunnel:
 
    ```text
    EC2 127.0.0.1:18095 -> local 127.0.0.1:8095
    ```
 
-4. Checks `https://notify.andrewnorman.org/api/health`.
+5. Verifies the remote tunnel bind exists on EC2.
+6. Starts the local notification server with `./start-mu2edaq-notify-server.sh`.
+7. Verifies local, tunnel, and public health endpoints.
+
+For shell tracing in addition to the normal timestamped status output:
+
+```bash
+MU2EDAQ_NOTIFY_DEBUG=1 scripts/start-mu2edaq-notify-chain.sh
+```
+
+On failure, the start script prints local listener state, pidfiles, recent
+tunnel logs, EC2 state/status, remote Caddy status, remote listeners, and recent
+Caddy journal lines.
 
 Useful environment overrides:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
+| `MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID` | `i-000ee813ecd9a47b3` | EC2 proxy instance |
 | `MU2EDAQ_NOTIFY_PUBLIC_URL` | `https://notify.andrewnorman.org` | public health-check URL base |
 | `MU2EDAQ_NOTIFY_PROXY_HOST` | `54.70.241.171` | EC2 Elastic IP |
 | `MU2EDAQ_NOTIFY_PROXY_USER` | `ec2-user` | EC2 SSH user |
 | `MU2EDAQ_NOTIFY_PROXY_KEY` | `data/mu2edaq-notify-proxy.pem` | SSH private key |
 | `MU2EDAQ_NOTIFY_PROXY_REMOTE_BIND` | `127.0.0.1:18095` | EC2-side tunnel bind |
 | `MU2EDAQ_NOTIFY_PROXY_LOCAL_TARGET` | `127.0.0.1:8095` | local server target |
-| `MU2EDAQ_NOTIFY_SKIP_SERVER` | `0` | set to `1` to leave local server alone |
-| `MU2EDAQ_NOTIFY_SKIP_REMOTE_CADDY` | `0` | set to `1` to leave remote Caddy alone |
+| `MU2EDAQ_NOTIFY_SSH_WAIT_TRIES` | `36` | SSH readiness attempts before failing |
 
-Example tunnel-only restart:
+For partial maintenance when EC2 is already running and you do not want the
+script to manage the instance, use the lower-level proxy script:
 
 ```bash
-MU2EDAQ_NOTIFY_SKIP_SERVER=1 \
-MU2EDAQ_NOTIFY_SKIP_REMOTE_CADDY=1 \
 scripts/start-mu2edaq-notify-proxy.sh
 ```
 
 ## Stop
 
-Stop only the SSH reverse tunnel:
+Stop the full chain:
 
 ```bash
-scripts/stop-mu2edaq-notify-proxy.sh
+scripts/stop-mu2edaq-notify-chain.sh
 ```
 
-Stop the tunnel and local notify server:
+The full stop script unloads matching LaunchAgents if they are loaded, stops
+manual pidfile-managed local processes, stops remote Caddy, and stops the EC2
+proxy instance.
 
-```bash
-MU2EDAQ_NOTIFY_STOP_SERVER=1 scripts/stop-mu2edaq-notify-proxy.sh
-```
+The stop script is idempotent and prints verification for each stage, including
+local port `8095`, SSH tunnel state, remote Caddy state when reachable, and the
+final EC2 instance state.
 
-Stop the tunnel, local notify server, and remote Caddy:
-
-```bash
-MU2EDAQ_NOTIFY_STOP_SERVER=1 \
-MU2EDAQ_NOTIFY_STOP_REMOTE_CADDY=1 \
-scripts/stop-mu2edaq-notify-proxy.sh
-```
-
-Leaving Caddy up is normally fine. If the tunnel is down, Caddy will serve an
-upstream error until the tunnel returns.
+For partial maintenance, `scripts/stop-mu2edaq-notify-proxy.sh` still stops the
+manual SSH tunnel and can optionally stop the local server or remote Caddy with
+environment flags.
 
 ## Status
 

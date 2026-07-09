@@ -74,6 +74,11 @@ discovery:
   enabled: true
   name: "Mu2e DAQ Notification Server"
   app: "notify"
+  # Advertise the public reverse-proxy URL so discovered publishers use a
+  # certificate-valid endpoint instead of the local :8095 Flask endpoint.
+  host: "notify.andrewnorman.org"
+  port: 443
+  scheme: "https"
 
 dispatch:
   # Suppress identical (rule, source, title) deliveries within this window.

@@ -33,7 +33,7 @@ if [ "${MU2EDAQ_NOTIFY_SKIP_SERVER:-0}" != "1" ]; then
     if command -v curl >/dev/null 2>&1 && curl -kfsS "$LOCAL_HEALTH_URL" >/dev/null 2>&1; then
         echo "Local notify server is already healthy at $LOCAL_HEALTH_URL."
     else
-        ./start-mu2edaq-notify-server.sh --no-discovery
+        ./start-mu2edaq-notify-server.sh
     fi
 fi
 

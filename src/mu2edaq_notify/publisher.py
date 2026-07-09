@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import socket
+import ssl
 import urllib.error
 import urllib.request
 
@@ -29,6 +30,21 @@ log = logging.getLogger(__name__)
 ENV_URL = "MU2EDAQ_NOTIFY_URL"
 ENV_TOKEN = "MU2EDAQ_NOTIFY_TOKEN"
 DISCOVERY_APP = "notify"
+
+
+def https_context():
+    """Return an SSL context with a usable CA bundle.
+
+    Python.org framework builds on macOS can have an empty OpenSSL CA
+    path until the separate certificate install step has run. Prefer
+    certifi when available so the publisher CLI validates public HTTPS
+    endpoints consistently.
+    """
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
 
 
 def _discover_server(timeout=2.0):
@@ -89,7 +105,9 @@ class NotifyPublisher:
         if self.token:
             req.add_header("Authorization", "Bearer " + self.token)
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(
+                    req, timeout=self.timeout,
+                    context=https_context()) as resp:
                 return 200 <= resp.status < 300
         except urllib.error.HTTPError as exc:
             log.warning("notification server rejected event (%s): %s",
