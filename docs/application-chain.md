@@ -32,18 +32,43 @@ iPhone
 
 ## Event Publishing Path
 
-DAQ publishers can send events to the server API:
+DAQ publishers on the local network normally don't need `--server` at all:
+mu2edaq-discovery resolves the server's local address automatically, with the
+public HTTPS URL carried as a fallback (see below).
+
+```bash
+venv/bin/mu2edaq-notify --token "$MU2EDAQ_NOTIFY_TOKEN" \
+  send --severity error --source daq "Example" "Message"
+```
+
+To publish from off the DAQ network (multicast discovery doesn't cross the
+FNAL gateway), point at the public endpoint explicitly:
 
 ```bash
 venv/bin/mu2edaq-notify \
   --server https://notify.andrewnorman.org \
   --token "$MU2EDAQ_NOTIFY_TOKEN" \
-  send --severity error --source daq --title "Example" --body "Message"
+  send --severity error --source daq "Example" "Message"
 ```
 
-If a publisher runs on the same local network as the server, it can also use the
-local server endpoint directly. For phone enrollment and external clients, use
-the public HTTPS URL.
+### Discovery: local-first, public fallback
+
+The server's discovery ANNOUNCE (see `discovery:` in
+`config/notify-server.yaml`) ships two addresses in one message:
+
+- **primary** -- the server's own local host/port/scheme (`discovery.host`,
+  `discovery.port`, `discovery.scheme` left empty so they default to this
+  machine's FQDN, `server.port`, and http/https matching
+  `server.tls.enabled`). This is what on-network publishers reach directly,
+  without a round trip through AWS.
+- **fallback** -- `discovery.fallback_url` (`https://notify.andrewnorman.org`),
+  carried in the ANNOUNCE's `meta.fallback_url`. Publishers only try this
+  when the primary is unreachable at the network level; the server rejecting
+  a request (bad token, bad payload) never triggers a fallback retry.
+
+The local server must run without `--no-discovery` for any of this to be
+advertised -- check the `org.mu2edaq.notify-server` LaunchAgent's
+`ProgramArguments` if discovery seems inactive.
 
 ## Device Registration Path
 

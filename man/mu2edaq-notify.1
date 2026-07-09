@@ -3,20 +3,26 @@
 mu2edaq-notify \- publish an event to the Mu2e DAQ notification server
 .SH SYNOPSIS
 .B mu2edaq-notify
-[\fB--server\fR \fIURL\fR] [\fB--token\fR \fITOKEN\fR] [\fB--no-discover\fR]
+[\fB--server\fR \fIURL\fR] [\fB--fallback-server\fR \fIURL\fR]
+[\fB--token\fR \fITOKEN\fR] [\fB--no-discover\fR]
 .B send
 [\fB--severity\fR \fILEVEL\fR] [\fB--source\fR \fINAME\fR]
 [\fB--meta\fR \fIKEY=VALUE\fR]... \fITITLE\fR [\fIMESSAGE\fR]
 .br
 .B mu2edaq-notify
-[\fB--server\fR \fIURL\fR] [\fB--no-discover\fR]
+[\fB--server\fR \fIURL\fR] [\fB--fallback-server\fR \fIURL\fR] [\fB--no-discover\fR]
 .B ping
 .SH DESCRIPTION
 Command-line publisher and diagnostic for the Mu2e DAQ notification
 system. \fBsend\fR publishes one event; \fBping\fR queries the server's
-health endpoint. When no server is given the address is taken from
+health endpoint (trying \fB--server\fR then \fB--fallback-server\fR).
+When no server is given the primary address is taken from
 $MU2EDAQ_NOTIFY_URL or found via the mu2edaq-discovery multicast
-protocol.
+protocol; the fallback address (tried only when the primary is
+unreachable) comes from $MU2EDAQ_NOTIFY_FALLBACK_URL or the discovered
+ANNOUNCE's \fBmeta.fallback_url\fR. An explicit rejection from a
+reachable server (bad token, bad payload) is never retried against the
+fallback.
 .SH OPTIONS
 .TP
 .B --severity LEVEL
@@ -27,6 +33,9 @@ Publishing application name shown in the dashboard (default: cli).
 .TP
 .B --meta KEY=VALUE
 Attach metadata; repeatable.
+.TP
+.B --fallback-server URL
+Address to try when the primary server is unreachable.
 .SH EXAMPLES
 .nf
 mu2edaq-notify send --severity error --source dtc-monitor \\
@@ -34,7 +43,7 @@ mu2edaq-notify send --severity error --source dtc-monitor \\
 mu2edaq-notify ping
 .fi
 .SH ENVIRONMENT
-MU2EDAQ_NOTIFY_URL, MU2EDAQ_NOTIFY_TOKEN.
+MU2EDAQ_NOTIFY_URL, MU2EDAQ_NOTIFY_FALLBACK_URL, MU2EDAQ_NOTIFY_TOKEN.
 .SH EXIT STATUS
 0 on success, 1 when the event was not accepted or the server is
 unreachable, 2 on usage error.

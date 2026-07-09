@@ -222,8 +222,23 @@ mu2edaq-notify send --severity critical --source diskwatcher \
 ```
 
 **Discovery note:** both libraries locate the server with a
-`mu2edaq-discovery` query (`app=notify`). Multicast does not cross the
-FNAL gateway, so off-network publishers must set the URL explicitly.
+`mu2edaq-discovery` query (`app=notify`), which resolves two addresses:
+
+- **primary** — the server's own local address (`discovery.host/port/scheme`
+  in its config, empty by default meaning "this machine, this port,
+  http/https matching `server.tls.enabled`"). On-network publishers use
+  this directly.
+- **fallback** — carried in the ANNOUNCE's `meta.fallback_url`
+  (`discovery.fallback_url` in the server config), typically the public
+  reverse-proxy URL. A publisher only tries the fallback when the
+  primary is unreachable at the network level (DNS/connection/timeout
+  failure); an explicit rejection from a reachable server (bad token,
+  bad payload) is never retried against the fallback.
+
+Multicast does not cross the FNAL gateway, so off-network publishers
+can't discover at all — set `MU2EDAQ_NOTIFY_URL` (and optionally
+`MU2EDAQ_NOTIFY_FALLBACK_URL`) explicitly instead, or pass
+`server_url=`/`--server` and `fallback_url=`/`--fallback-server`.
 
 ## 7. Apple push (APNs) — going from log-only to real pushes
 
@@ -336,7 +351,8 @@ ctest --test-dir build         # C++ (needs CppUnit installed)
 | Delivery status `logged` for phones | APNs still disabled (§7), or the device has no APNs token yet |
 | Push fails `BadDeviceToken` | `apns.sandbox` doesn't match how the app was installed (Xcode = sandbox, TestFlight/App Store = production) |
 | QR scan does nothing on the phone | Enrollment token expired (default 30 min) — generate a new one; check `server.base_url` is reachable from the phone |
-| Discovery not finding the server | mu2edaq-discovery installed in the venv? Multicast doesn't cross the FNAL gateway — set `MU2EDAQ_NOTIFY_URL` off-network |
+| Discovery not finding the server | mu2edaq-discovery installed in the venv? Server started without `--no-discovery` and `discovery.enabled: true`? Multicast doesn't cross the FNAL gateway — set `MU2EDAQ_NOTIFY_URL` off-network |
+| Publisher used the public fallback instead of local | Only expected when the local address was actually unreachable; otherwise check `discovery.host/port/scheme` in the server config (should be empty/local, not the public URL) |
 | Web UI unstyled with no internet | Tailwind/htmx load from CDNs; on an isolated network vendor them into `web/static/` and adjust `base.html` |
 
 Man pages: `man ./man/mu2edaq-notify-server.1`, `man ./man/mu2edaq-notify.1`,

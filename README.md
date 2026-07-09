@@ -112,8 +112,17 @@ Shell: `mu2edaq-notify send --severity error "DTC link down" "detail"`.
 
 Both libraries find the server automatically via
 [mu2edaq-discovery](https://github.com/Mu2e/mu2edaq-discovery)
-(`app=notify`), or use `$MU2EDAQ_NOTIFY_URL`. Existing ZeroMQ publishers
-(downtime-logger style) are ingested unchanged when `zmq.enabled: true`.
+(`app=notify`), or use `$MU2EDAQ_NOTIFY_URL`. The server advertises its
+own **local** address as primary (so on-network publishers talk to it
+directly) and carries the public reverse-proxy URL as a **fallback** in
+the ANNOUNCE metadata (`discovery.fallback_url` in the config); a
+publisher only tries the fallback when the local address is unreachable
+at the network level — an explicit rejection (bad token, bad payload) is
+never retried against the fallback. Off-network publishers that can't
+reach the multicast group at all should just set `$MU2EDAQ_NOTIFY_URL`
+(and optionally `$MU2EDAQ_NOTIFY_FALLBACK_URL`) directly. Existing
+ZeroMQ publishers (downtime-logger style) are ingested unchanged when
+`zmq.enabled: true`.
 
 ## iPhone app
 

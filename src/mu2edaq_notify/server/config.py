@@ -62,9 +62,18 @@ DEFAULTS = {
         "enabled": True,
         "name": "Mu2e DAQ Notification Server",
         "app": "notify",
+        # host/port/scheme: empty means "advertise the local server itself"
+        # (host defaults to this machine's FQDN, port to server.port,
+        # scheme to http/https matching server.tls.enabled). This is what
+        # on-network DAQ publishers should reach directly.
         "host": "",
         "port": 0,
         "scheme": "",
+        # Advertised in the ANNOUNCE meta as "fallback_url". Publishers
+        # try the local host/port/scheme above first and only fall back
+        # to this address (typically the public reverse-proxy URL) when
+        # the local one is unreachable.
+        "fallback_url": "",
     },
     "dispatch": {
         "rate_limit_seconds": 60,
@@ -95,6 +104,7 @@ ENV_MAP = {
     "MU2EDAQ_NOTIFY_DISCOVERY_HOST": ("discovery", "host"),
     "MU2EDAQ_NOTIFY_DISCOVERY_PORT": ("discovery", "port"),
     "MU2EDAQ_NOTIFY_DISCOVERY_SCHEME": ("discovery", "scheme"),
+    "MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL": ("discovery", "fallback_url"),
 }
 
 

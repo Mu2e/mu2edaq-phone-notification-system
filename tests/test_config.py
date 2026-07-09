@@ -79,3 +79,26 @@ def test_discovery_advertisement_overrides():
     assert cfg["discovery"]["host"] == "notify.example"
     assert cfg["discovery"]["port"] == 443
     assert cfg["discovery"]["scheme"] == "https"
+
+
+def test_discovery_defaults_to_local_with_no_fallback():
+    # Out of the box the ANNOUNCE should describe this server itself
+    # (empty host/port/scheme -> local), with no fallback configured.
+    cfg = load_config(environ={})
+    assert cfg["discovery"]["host"] == ""
+    assert cfg["discovery"]["port"] == 0
+    assert cfg["discovery"]["scheme"] == ""
+    assert cfg["discovery"]["fallback_url"] == ""
+
+
+def test_discovery_fallback_url_from_yaml_and_env(tmp_path):
+    path = tmp_path / "cfg.yaml"
+    path.write_text("discovery:\n"
+                    "  fallback_url: \"https://notify.example\"\n")
+    cfg = load_config(config_file=str(path), environ={})
+    assert cfg["discovery"]["fallback_url"] == "https://notify.example"
+
+    cfg = load_config(environ={
+        "MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL": "https://from-env.example",
+    })
+    assert cfg["discovery"]["fallback_url"] == "https://from-env.example"

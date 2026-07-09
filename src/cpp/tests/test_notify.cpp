@@ -13,6 +13,7 @@ class NotifyTest : public CppUnit::TestFixture {
     CPPUNIT_TEST(testJsonEscape);
     CPPUNIT_TEST(testBuildPayload);
     CPPUNIT_TEST(testPublishWithoutServerFails);
+    CPPUNIT_TEST(testPublishReturnsFalseWhenPrimaryAndFallbackUnreachable);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -48,13 +49,30 @@ public:
         mu2edaq::notify::Options opts;
         opts.discover = false;      // no network lookups in unit tests
         opts.server_url = "";
+        opts.fallback_url = "";
 #ifdef _WIN32
         _putenv("MU2EDAQ_NOTIFY_URL=");
+        _putenv("MU2EDAQ_NOTIFY_FALLBACK_URL=");
 #else
         unsetenv("MU2EDAQ_NOTIFY_URL");
+        unsetenv("MU2EDAQ_NOTIFY_FALLBACK_URL");
 #endif
         mu2edaq::notify::Publisher pub(opts);
         CPPUNIT_ASSERT_EQUAL(false, pub.info("should not send"));
+    }
+
+    void testPublishReturnsFalseWhenPrimaryAndFallbackUnreachable() {
+        mu2edaq::notify::Options opts;
+        opts.discover = false;
+        opts.server_url = "http://127.0.0.1:1";     // connection refused
+        opts.fallback_url = "http://127.0.0.1:2";   // also refused
+        opts.timeout_ms = 2000;
+        mu2edaq::notify::Publisher pub(opts);
+        CPPUNIT_ASSERT_EQUAL(false, pub.warning("both unreachable"));
+        CPPUNIT_ASSERT_EQUAL(std::string("http://127.0.0.1:1"),
+                             pub.server_url());
+        CPPUNIT_ASSERT_EQUAL(std::string("http://127.0.0.1:2"),
+                             pub.fallback_url());
     }
 };
 

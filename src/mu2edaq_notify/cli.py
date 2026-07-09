@@ -10,15 +10,19 @@ import sys
 import urllib.request
 
 from .events import SEVERITIES
-from .publisher import ENV_TOKEN, ENV_URL, NotifyPublisher, https_context
+from .publisher import (ENV_FALLBACK_URL, ENV_TOKEN, ENV_URL,
+                        NotifyPublisher, https_context)
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(
         prog="mu2edaq-notify",
         description="Publish an event to the Mu2e DAQ notification server.")
-    p.add_argument("--server", help="server URL (default: $%s or discovery)"
-                   % ENV_URL)
+    p.add_argument("--server", help="primary server URL "
+                   "(default: $%s or discovery)" % ENV_URL)
+    p.add_argument("--fallback-server", help="server URL to try when the "
+                   "primary is unreachable (default: $%s or discovery "
+                   "meta)" % ENV_FALLBACK_URL)
     p.add_argument("--token", help="API bearer token (default: $%s)"
                    % ENV_TOKEN)
     p.add_argument("--no-discover", action="store_true",
@@ -41,22 +45,32 @@ def main(argv=None):
         p.print_help()
         return 2
 
-    pub = NotifyPublisher(server_url=args.server, token=args.token,
-                          discover=not args.no_discover)
+    pub = NotifyPublisher(server_url=args.server,
+                          fallback_url=args.fallback_server,
+                          token=args.token, discover=not args.no_discover)
 
     if args.command == "ping":
-        if not pub.server_url:
+        urls = [u for u in (pub.server_url, pub.fallback_url) if u]
+        urls = list(dict.fromkeys(urls))  # de-dupe, preserve order
+        if not urls:
             print("no server configured or discovered", file=sys.stderr)
             return 1
-        url = pub.server_url.rstrip("/") + "/api/health"
-        try:
-            with urllib.request.urlopen(
-                    url, timeout=5, context=https_context()) as resp:
-                print(json.dumps(json.load(resp), indent=2))
-                return 0
-        except Exception as exc:
-            print("health check failed: %s" % exc, file=sys.stderr)
-            return 1
+        last_error = None
+        for url in urls:
+            health_url = url.rstrip("/") + "/api/health"
+            try:
+                with urllib.request.urlopen(
+                        health_url, timeout=5,
+                        context=https_context()) as resp:
+                    print("server: %s" % url)
+                    print(json.dumps(json.load(resp), indent=2))
+                    return 0
+            except Exception as exc:
+                last_error = exc
+                print("no response from %s (%s)" % (url, exc),
+                     file=sys.stderr)
+        print("health check failed: %s" % last_error, file=sys.stderr)
+        return 1
 
     meta = {}
     for item in args.meta:

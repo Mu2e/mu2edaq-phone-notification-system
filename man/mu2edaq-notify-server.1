@@ -14,7 +14,12 @@ rules, and delivers push notifications to registered iPhones via APNs and
 to Slack and Discord webhooks. Serves a web interface for viewing events
 and managing filters, destinations, and device enrollment (QR code).
 Announces itself with the mu2edaq-discovery protocol so publishers can
-find it automatically.
+find it automatically: the ANNOUNCE's own host/port/scheme
+(\fBdiscovery.host/port/scheme\fR, empty by default meaning this
+machine, \fB--port\fR, and http/https matching TLS) is the primary
+address, and \fBdiscovery.fallback_url\fR (typically the public
+reverse-proxy URL) rides along as ANNOUNCE metadata for publishers to
+use only when the primary is unreachable.
 .SH OPTIONS
 .TP
 .B --config FILE
@@ -45,7 +50,9 @@ Flask debug mode (development only).
 MU2EDAQ_NOTIFY_CONFIG, MU2EDAQ_NOTIFY_HOST, MU2EDAQ_NOTIFY_PORT,
 MU2EDAQ_NOTIFY_BASE_URL, MU2EDAQ_NOTIFY_DB_URL, MU2EDAQ_NOTIFY_API_TOKEN,
 MU2EDAQ_NOTIFY_APNS_ENABLED, MU2EDAQ_NOTIFY_ZMQ_ENABLED,
-MU2EDAQ_NOTIFY_ZMQ_BIND, MU2EDAQ_NOTIFY_DISCOVERY_ENABLED.
+MU2EDAQ_NOTIFY_ZMQ_BIND, MU2EDAQ_NOTIFY_DISCOVERY_ENABLED,
+MU2EDAQ_NOTIFY_DISCOVERY_HOST, MU2EDAQ_NOTIFY_DISCOVERY_PORT,
+MU2EDAQ_NOTIFY_DISCOVERY_SCHEME, MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL.
 Precedence: command line > environment > config file > defaults.
 .SH FILES
 config/notify-server.yaml (configuration),

@@ -105,6 +105,19 @@ def server_scheme(cfg):
     return "https" if cfg["server"].get("tls", {}).get("enabled") else "http"
 
 
+def discovery_meta(cfg):
+    """Extra ANNOUNCE metadata: the public fallback URL, when configured.
+
+    The ANNOUNCE itself advertises this server's own local host/port/
+    scheme (so on-network publishers connect directly); the fallback
+    URL -- typically the public reverse-proxy address -- rides along in
+    ``meta`` for publishers to use only when the local address is
+    unreachable.
+    """
+    fallback = cfg["discovery"].get("fallback_url") or ""
+    return {"fallback_url": fallback} if fallback else None
+
+
 def start_discovery(cfg):
     """Announce via mu2edaq-discovery if installed and enabled."""
     if not cfg["discovery"].get("enabled"):
@@ -121,11 +134,14 @@ def start_discovery(cfg):
                           port=int(discovery.get("port")
                                    or cfg["server"]["port"]),
                           scheme=discovery.get("scheme")
-                          or server_scheme(cfg))
+                          or server_scheme(cfg),
+                          meta=discovery_meta(cfg))
     responder.start()
-    log.info("discovery responder started (app=%s, host=%s, port=%s)",
-             discovery.get("app"), discovery.get("host") or "<default>",
-             discovery.get("port") or cfg["server"]["port"])
+    log.info("discovery responder started (app=%s, host=%s, port=%s, "
+             "fallback_url=%s)",
+             discovery.get("app"), discovery.get("host") or "<local>",
+             discovery.get("port") or cfg["server"]["port"],
+             discovery.get("fallback_url") or "<none>")
     return responder
 
 

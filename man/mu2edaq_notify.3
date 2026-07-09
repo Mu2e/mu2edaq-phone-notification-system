@@ -6,8 +6,8 @@ server
 .nf
 from mu2edaq_notify import NotifyPublisher, publish_event
 
-pub = NotifyPublisher(server_url=None, token=None, source=None,
-                      host=None, timeout=5.0, discover=True)
+pub = NotifyPublisher(server_url=None, fallback_url=None, token=None,
+                      source=None, host=None, timeout=5.0, discover=True)
 pub.publish(severity, title, message="", source=None, meta=None)
 pub.debug(title, ...)  pub.info(...)  pub.warning(...)
 pub.error(...)         pub.critical(...)
@@ -15,14 +15,21 @@ pub.error(...)         pub.critical(...)
 publish_event(severity, title, message="", **kwargs)
 .fi
 .SH DESCRIPTION
-Standard-library-only client for publishing events. The server address
-resolves in order: constructor argument, $MU2EDAQ_NOTIFY_URL, then a
-mu2edaq-discovery multicast query (filter app=notify) when
-\fBdiscover\fR is true. The bearer token comes from the constructor or
+Standard-library-only client for publishing events. Two addresses are
+resolved independently, each in order constructor argument >
+environment > discovery: \fBserver_url\fR (primary; $MU2EDAQ_NOTIFY_URL;
+the mu2edaq-discovery ANNOUNCE's own host/port/scheme) and
+\fBfallback_url\fR (secondary; $MU2EDAQ_NOTIFY_FALLBACK_URL; the same
+ANNOUNCE's \fBmeta.fallback_url\fR), used only when \fBdiscover\fR is
+true. The bearer token comes from the constructor or
 $MU2EDAQ_NOTIFY_TOKEN.
 .PP
-\fBpublish()\fR returns True when the server accepted the event and
-False otherwise. It never raises on delivery failure: publishing a
+\fBpublish()\fR tries \fBserver_url\fR first. It only tries
+\fBfallback_url\fR when the primary is unreachable at the network level
+(DNS/connection/timeout failure) -- an explicit rejection from a
+reachable server (bad token, bad payload) is not retried against the
+fallback. Returns True when a server accepted the event and False
+otherwise. It never raises on delivery failure: publishing a
 notification must not be able to take down a DAQ application.
 .SH EVENT FIELDS
 severity (debug|info|warning|error|critical), title (<=200 chars),

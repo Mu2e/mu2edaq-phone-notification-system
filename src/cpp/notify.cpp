@@ -9,6 +9,7 @@
 #include <cstring>
 #include <random>
 #include <sstream>
+#include <vector>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -142,15 +143,15 @@ std::string Publisher::build_payload(const std::string& severity,
     return os.str();
 }
 
-std::string discover_server(double timeout_s) {
+DiscoveredServer discover_server_pair(double timeout_s) {
+    DiscoveredServer result;
 #ifdef _WIN32
     WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return "";
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return result;
 #endif
     socket_t sock = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock == INVALID_SOCKET) return "";
+    if (sock == INVALID_SOCKET) return result;
 
-    std::string result;
     const std::string qid = random_qid();
     const std::string query =
         "{\"proto\":\"mu2edaq-discovery/1\",\"type\":\"DISCOVER\","
@@ -191,8 +192,9 @@ std::string discover_server(double timeout_s) {
             std::string port = json_field(doc, "port");
             std::string scheme = json_field(doc, "scheme");
             if (!host.empty() && !port.empty()) {
-                result = (scheme.empty() ? "http" : scheme) + "://" + host +
-                         ":" + port;
+                result.primary = (scheme.empty() ? "http" : scheme) +
+                                 "://" + host + ":" + port;
+                result.fallback = json_field(doc, "fallback_url");
                 break;
             }
         }
@@ -205,6 +207,10 @@ std::string discover_server(double timeout_s) {
     return result;
 }
 
+std::string discover_server(double timeout_s) {
+    return discover_server_pair(timeout_s).primary;
+}
+
 Publisher::Publisher(Options opts) : opts_(std::move(opts)) {
     if (opts_.token.empty()) opts_.token = getenv_str("MU2EDAQ_NOTIFY_TOKEN");
     if (opts_.host.empty()) opts_.host = local_hostname();
@@ -215,24 +221,29 @@ void Publisher::resolve_server() {
     if (resolved_) return;
     if (opts_.server_url.empty())
         opts_.server_url = getenv_str("MU2EDAQ_NOTIFY_URL");
-    if (opts_.server_url.empty() && opts_.discover)
-        opts_.server_url = discover_server();
+    if (opts_.fallback_url.empty())
+        opts_.fallback_url = getenv_str("MU2EDAQ_NOTIFY_FALLBACK_URL");
+    if (opts_.discover &&
+        (opts_.server_url.empty() || opts_.fallback_url.empty())) {
+        DiscoveredServer d = discover_server_pair();
+        if (opts_.server_url.empty()) opts_.server_url = d.primary;
+        if (opts_.fallback_url.empty()) opts_.fallback_url = d.fallback;
+    }
     resolved_ = true;
 }
 
-bool Publisher::publish(const std::string& severity, const std::string& title,
-                        const std::string& message, const Meta& meta) {
-    resolve_server();
-    if (opts_.server_url.empty()) return false;
-
-    const std::string payload = build_payload(severity, title, message,
-                                              opts_.source, opts_.host, meta);
-    std::string url = opts_.server_url;
+bool Publisher::post_once(const std::string& base_url,
+                          const std::string& payload, bool* unreachable) {
+    *unreachable = false;
+    std::string url = base_url;
     while (!url.empty() && url.back() == '/') url.pop_back();
     url += "/api/events";
 
     CURL* curl = curl_easy_init();
-    if (!curl) return false;
+    if (!curl) {
+        *unreachable = true;
+        return false;
+    }
 
     curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -254,7 +265,36 @@ bool Publisher::publish(const std::string& severity, const std::string& title,
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-    return rc == CURLE_OK && status >= 200 && status < 300;
+
+    if (rc != CURLE_OK) {
+        // Transport-level failure (DNS, connection refused, timeout): the
+        // server was never reached, so a fallback address is worth trying.
+        *unreachable = true;
+        return false;
+    }
+    return status >= 200 && status < 300;
+}
+
+bool Publisher::publish(const std::string& severity, const std::string& title,
+                        const std::string& message, const Meta& meta) {
+    resolve_server();
+
+    std::vector<std::string> urls;
+    if (!opts_.server_url.empty()) urls.push_back(opts_.server_url);
+    if (!opts_.fallback_url.empty() &&
+        opts_.fallback_url != opts_.server_url) {
+        urls.push_back(opts_.fallback_url);
+    }
+    if (urls.empty()) return false;
+
+    const std::string payload = build_payload(severity, title, message,
+                                              opts_.source, opts_.host, meta);
+    for (const auto& url : urls) {
+        bool unreachable = false;
+        const bool ok = post_once(url, payload, &unreachable);
+        if (!unreachable) return ok;  // reached the server: done either way
+    }
+    return false;  // every address was unreachable
 }
 
 }  // namespace notify

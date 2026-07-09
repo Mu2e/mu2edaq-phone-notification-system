@@ -7,25 +7,33 @@ notification server
 #include <mu2edaq_notify/notify.hpp>
 // link: -lmu2edaq_notify -lcurl   (CMake: mu2edaq::notify)
 
-mu2edaq::notify::Options opts;   // server_url, token, source, host,
-                                 // timeout_ms, discover
+mu2edaq::notify::Options opts;   // server_url, fallback_url, token,
+                                 // source, host, timeout_ms, discover
 mu2edaq::notify::Publisher pub(opts);
 bool ok = pub.publish(severity, title, message, meta);
 pub.debug(t,m)  pub.info(t,m)  pub.warning(t,m)
 pub.error(t,m)  pub.critical(t,m)
 
-std::string url = mu2edaq::notify::discover_server(timeout_s);
+mu2edaq::notify::DiscoveredServer d =
+    mu2edaq::notify::discover_server_pair(timeout_s);   // d.primary, d.fallback
+std::string url = mu2edaq::notify::discover_server(timeout_s);  // primary only
 .fi
 .SH DESCRIPTION
-Publishes events over HTTP using libcurl. Server resolution order:
-Options::server_url, $MU2EDAQ_NOTIFY_URL, then a mu2edaq-discovery
-multicast query (UDP 239.255.42.99:28999, filter app=notify) when
-Options::discover is true. The bearer token comes from Options::token
-or $MU2EDAQ_NOTIFY_TOKEN.
+Publishes events over HTTP using libcurl. Two addresses resolve
+independently, each in order Options field > environment > discovery:
+\fBserver_url\fR (primary; $MU2EDAQ_NOTIFY_URL; the mu2edaq-discovery
+ANNOUNCE's own host/port/scheme) and \fBfallback_url\fR (secondary;
+$MU2EDAQ_NOTIFY_FALLBACK_URL; the same ANNOUNCE's
+\fBmeta.fallback_url\fR), used only when Options::discover is true
+(UDP multicast 239.255.42.99:28999, filter app=notify). The bearer
+token comes from Options::token or $MU2EDAQ_NOTIFY_TOKEN.
 .PP
-publish() returns true when the server accepted the event; it never
-throws on delivery failure. Meta is a
-std::map<std::string,std::string>.
+publish() tries server_url first and only tries fallback_url when the
+primary is unreachable at the transport level (DNS/connection/timeout
+failure) -- an explicit rejection from a reachable server (bad token,
+bad payload) is not retried against the fallback. Returns true when a
+server accepted the event; it never throws on delivery failure. Meta is
+a std::map<std::string,std::string>.
 .SH BUILDING
 .nf
 cmake -S . -B build && cmake --build build

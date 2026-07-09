@@ -71,14 +71,20 @@ zmq:
 
 discovery:
   # Announce this server via mu2edaq-discovery so publishers can find it.
+  # The ANNOUNCE advertises this host's own local address (host/port/
+  # scheme left empty below so they default to this machine's FQDN,
+  # server.port, and http/https matching server.tls.enabled) -- so
+  # on-network DAQ publishers connect directly without going out to AWS
+  # and back. fallback_url rides along as ANNOUNCE metadata and is only
+  # used by publishers when the local address is unreachable (e.g. the
+  # publisher is off the DAQ network).
   enabled: true
   name: "Mu2e DAQ Notification Server"
   app: "notify"
-  # Advertise the public reverse-proxy URL so discovered publishers use a
-  # certificate-valid endpoint instead of the local :8095 Flask endpoint.
-  host: "notify.andrewnorman.org"
-  port: 443
-  scheme: "https"
+  host: ""
+  port: 0
+  scheme: ""
+  fallback_url: "https://notify.andrewnorman.org"
 
 dispatch:
   # Suppress identical (rule, source, title) deliveries within this window.
