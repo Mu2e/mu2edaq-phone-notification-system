@@ -90,6 +90,22 @@ dispatch:
   # Suppress identical (rule, source, title) deliveries within this window.
   rate_limit_seconds: 60
 
+# Canonical list of subsystem category tags. Populates the web UI's
+# category pickers and GET /api/categories. Events may be published with
+# any category string -- this list is not enforced at ingest, so an
+# unrecognized or missing category never causes an event to be dropped
+# -- but filter rules typically route by these names (category_pattern).
+# Add or rename entries here at any time; no restart-order dependency on
+# the seeded filters below, which reference these by plain string.
+categories:
+  - "DAQ"
+  - "Trigger"
+  - "Detector Controls"
+  - "Tracker"
+  - "Calorimeter"
+  - "Cosmic Ray Veto"
+  - "Stopping Target Monitor"
+
 # Filters and destinations seeded into the database on first start.
 # After that, manage them in the web interface.
 seed:
@@ -106,4 +122,9 @@ seed:
     - name: "errors-to-phones"
       min_severity: "error"
       source_pattern: "*"
+      category_pattern: "*"
       destinations: ["all-phones"]
+    # - name: "tracker-to-tracker-slack"
+    #   min_severity: "warning"
+    #   category_pattern: "Tracker"
+    #   destinations: ["tracker-slack"]

@@ -9,9 +9,10 @@ device endpoints require the device token issued at registration.</p>
 <div class="space-y-3 max-w-4xl">
   {% for method, path, auth_kind, desc, body in [
     ('GET',  '/api/health', 'none', 'Server health, version, and event counts.', ''),
-    ('POST', '/api/events', 'API token', 'Publish an event.',
-     '{"source": "dtc-monitor", "host": "mu2edaq09", "severity": "error", "title": "DTC link down", "message": "ROC link 3 lost lock", "meta": {"run": "107001"}}'),
-    ('GET',  '/api/events?limit=&severity=&source=&since_id=', 'API/device token or session', 'List recent events, newest first.', ''),
+    ('GET',  '/api/categories', 'none', 'The configured canonical category list (categories: in notify-server.yaml).', ''),
+    ('POST', '/api/events', 'API token', 'Publish an event. category is optional and freeform -- any string is accepted, even one not in /api/categories.',
+     '{"source": "dtc-monitor", "host": "mu2edaq09", "severity": "error", "category": "Trigger", "title": "DTC link down", "message": "ROC link 3 lost lock", "meta": {"run": "107001"}}'),
+    ('GET',  '/api/events?limit=&severity=&source=&category=&since_id=', 'API/device token or session', 'List recent events, newest first.', ''),
     ('GET',  '/api/events/&lt;id&gt;', 'API/device token or session', 'One event with its delivery records.', ''),
     ('POST', '/api/devices/register', 'enrollment token (in body)', 'Register a phone; returns the permanent device bearer token.',
      '{"enrollment_token": "…", "name": "Andrew\'s iPhone", "apns_token": "…"}'),

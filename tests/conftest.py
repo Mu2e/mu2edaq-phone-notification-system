@@ -41,6 +41,7 @@ def make_event(**overrides):
         "source": "dtc-monitor",
         "host": "mu2edaq09",
         "severity": "error",
+        "category": "Trigger",
         "title": "DTC link down",
         "message": "ROC link 3 lost lock",
         "meta": {"run": "107001"},

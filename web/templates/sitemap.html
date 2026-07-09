@@ -5,10 +5,10 @@
 <div class="rounded-lg border border-slate-800 bg-slate-900 p-6 max-w-2xl text-sm">
   <ul class="space-y-2">
     <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.dashboard') }}">/ — Dashboard</a>
-      <span class="text-slate-500">— live event feed, severity counters, test-event button</span>
+      <span class="text-slate-500">— live event feed, severity and category counters, test-event button</span>
       <ul class="ml-6 mt-1 text-slate-400"><li>/events/&lt;id&gt; — event detail with delivery log</li></ul></li>
     <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.filters_page') }}">/filters — Filters</a>
-      <span class="text-slate-500">— routing rules from events to destinations</span></li>
+      <span class="text-slate-500">— routing rules from events (severity/source/host/category) to destinations</span></li>
     <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.destinations_page') }}">/destinations — Destinations</a>
       <span class="text-slate-500">— iPhone push, Slack, and Discord targets</span></li>
     <li><a class="text-sky-400 hover:underline" href="{{ url_for('web.devices_page') }}">/devices — Devices</a>

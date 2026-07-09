@@ -52,5 +52,27 @@ def test_normalize_truncates():
     assert len(event["message"]) <= 4000
 
 
+def test_normalize_category_passthrough():
+    event = normalize_event({"title": "x", "category": "  Tracker  "})
+    assert event["category"] == "Tracker"
+
+
+def test_normalize_category_defaults_to_empty():
+    event = normalize_event({"title": "x"})
+    assert event["category"] == ""
+
+
+def test_normalize_category_is_not_validated_against_any_list():
+    # category is freeform at this layer -- the canonical list is
+    # server-configured, and this module has no view of server config.
+    event = normalize_event({"title": "x", "category": "NotARealCategory"})
+    assert event["category"] == "NotARealCategory"
+
+
+def test_normalize_category_truncates():
+    event = normalize_event({"title": "x", "category": "c" * 500})
+    assert len(event["category"]) <= 100
+
+
 def test_severity_list_is_ordered():
     assert SEVERITIES == ["debug", "info", "warning", "error", "critical"]

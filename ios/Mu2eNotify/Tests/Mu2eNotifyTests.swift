@@ -6,7 +6,7 @@ final class Mu2eNotifyTests: XCTestCase {
     func testEventDecoding() throws {
         let json = """
         {"events": [{"id": 7, "source": "dtc-monitor", "host": "mu2edaq09",
-          "severity": "error", "title": "DTC link down",
+          "severity": "error", "category": "Trigger", "title": "DTC link down",
           "message": "ROC link 3 lost lock",
           "timestamp": "2026-07-07T12:00:00+00:00",
           "received_at": "2026-07-07T12:00:01+00:00",
@@ -18,17 +18,30 @@ final class Mu2eNotifyTests: XCTestCase {
         let event = decoded.events[0]
         XCTAssertEqual(event.id, 7)
         XCTAssertEqual(event.sev, .error)
+        XCTAssertEqual(event.category, "Trigger")
         XCTAssertEqual(event.meta["run"], "107001")
     }
 
     func testUnknownSeverityFallsBackToInfo() throws {
         let json = """
         {"id": 1, "source": "x", "host": "h", "severity": "bogus",
-         "title": "t", "message": "", "timestamp": "",
+         "category": "", "title": "t", "message": "", "timestamp": "",
          "received_at": "", "meta": {}}
         """.data(using: .utf8)!
         let event = try JSONDecoder().decode(NotifyEvent.self, from: json)
         XCTAssertEqual(event.sev, .info)
+        XCTAssertEqual(event.category, "")
+    }
+
+    func testCategoriesDecoding() throws {
+        let json = """
+        {"categories": ["DAQ", "Trigger", "Detector Controls", "Tracker",
+          "Calorimeter", "Cosmic Ray Veto", "Stopping Target Monitor"]}
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(CategoriesResponse.self,
+                                               from: json)
+        XCTAssertEqual(decoded.categories.count, 7)
+        XCTAssertEqual(decoded.categories.first, "DAQ")
     }
 
     func testSeverityOrdering() {

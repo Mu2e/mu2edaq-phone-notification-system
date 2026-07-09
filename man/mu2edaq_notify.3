@@ -7,8 +7,10 @@ server
 from mu2edaq_notify import NotifyPublisher, publish_event
 
 pub = NotifyPublisher(server_url=None, fallback_url=None, token=None,
-                      source=None, host=None, timeout=5.0, discover=True)
-pub.publish(severity, title, message="", source=None, meta=None)
+                      source=None, category=None, host=None, timeout=5.0,
+                      discover=True)
+pub.publish(severity, title, message="", source=None, category=None,
+           meta=None)
 pub.debug(title, ...)  pub.info(...)  pub.warning(...)
 pub.error(...)         pub.critical(...)
 
@@ -33,12 +35,20 @@ otherwise. It never raises on delivery failure: publishing a
 notification must not be able to take down a DAQ application.
 .SH EVENT FIELDS
 severity (debug|info|warning|error|critical), title (<=200 chars),
-message (<=4000 chars), source, host (defaults to the local hostname),
-meta (string map).
+message (<=4000 chars), source, category (freeform subsystem tag,
+<=100 chars; see GET /api/categories on the server for the configured
+canonical list -- unrecognized or omitted values are still accepted),
+host (defaults to the local hostname), meta (string map).
+.PP
+\fBcategory\fR follows the same precedence as \fBsource\fR: a
+per-\fBpublish()\fR value overrides the publisher's own \fBcategory\fR
+set at construction (itself resolved from the constructor argument or
+$MU2EDAQ_NOTIFY_CATEGORY).
 .SH EXAMPLE
 .nf
 from mu2edaq_notify import NotifyPublisher
-pub = NotifyPublisher(token="api-token", source="dtc-monitor")
+pub = NotifyPublisher(token="api-token", source="dtc-monitor",
+                      category="Trigger")
 pub.error("DTC link down", "ROC link 3 lost lock",
           meta={"run": "107001"})
 .fi

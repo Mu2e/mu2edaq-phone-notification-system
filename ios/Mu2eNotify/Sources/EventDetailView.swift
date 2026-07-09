@@ -13,9 +13,16 @@ struct EventDetailView: View {
                     VStack(alignment: .leading) {
                         Text(event.title)
                             .font(.headline)
-                        Text(event.sev.rawValue.uppercased())
-                            .font(.caption.bold())
-                            .foregroundColor(event.sev.color)
+                        HStack(spacing: 6) {
+                            Text(event.sev.rawValue.uppercased())
+                                .font(.caption.bold())
+                                .foregroundColor(event.sev.color)
+                            if !event.category.isEmpty {
+                                Text(event.category)
+                                    .font(.caption.weight(.medium))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
                 if !event.message.isEmpty {
@@ -27,6 +34,9 @@ struct EventDetailView: View {
             Section("Origin") {
                 LabeledContent("Source", value: event.source)
                 LabeledContent("Host", value: event.host)
+                if !event.category.isEmpty {
+                    LabeledContent("Category", value: event.category)
+                }
                 LabeledContent("Event time", value: event.timestamp)
                 LabeledContent("Received", value: event.receivedAt)
             }

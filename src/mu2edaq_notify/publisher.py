@@ -7,11 +7,12 @@ via mu2edaq-discovery when that package is importable.
 
     from mu2edaq_notify import NotifyPublisher
 
-    pub = NotifyPublisher(token="my-api-token")   # server found via discovery
-    pub.error("DTC link down", "ROC link 3 lost lock", source="dtc-monitor")
+    pub = NotifyPublisher(token="my-api-token", source="dtc-monitor",
+                         category="Trigger")   # server found via discovery
+    pub.error("DTC link down", "ROC link 3 lost lock")
 
 Configuration precedence: constructor arguments > environment
-(``MU2EDAQ_NOTIFY_URL``, ``MU2EDAQ_NOTIFY_TOKEN``) > discovery.
+(``MU2EDAQ_NOTIFY_URL``, ``MU2EDAQ_NOTIFY_TOKEN``, etc.) > discovery.
 
 Discovery resolves two addresses: a primary (the server's own local
 address, so on-network publishers connect directly) and a fallback
@@ -38,6 +39,7 @@ log = logging.getLogger(__name__)
 ENV_URL = "MU2EDAQ_NOTIFY_URL"
 ENV_TOKEN = "MU2EDAQ_NOTIFY_TOKEN"
 ENV_FALLBACK_URL = "MU2EDAQ_NOTIFY_FALLBACK_URL"
+ENV_CATEGORY = "MU2EDAQ_NOTIFY_CATEGORY"
 DISCOVERY_APP = "notify"
 
 
@@ -93,7 +95,8 @@ class NotifyPublisher:
     """Publishes events to the notification server over HTTP."""
 
     def __init__(self, server_url=None, token=None, source=None,
-                 host=None, timeout=5.0, discover=True, fallback_url=None):
+                 category=None, host=None, timeout=5.0, discover=True,
+                 fallback_url=None):
         self.server_url = server_url or os.environ.get(ENV_URL)
         self.fallback_url = fallback_url or os.environ.get(ENV_FALLBACK_URL)
         if discover and (not self.server_url or not self.fallback_url):
@@ -102,6 +105,7 @@ class NotifyPublisher:
             self.fallback_url = self.fallback_url or d_fallback
         self.token = token or os.environ.get(ENV_TOKEN)
         self.source = source or os.path.basename(os.environ.get("_", "")) or "python"
+        self.category = category or os.environ.get(ENV_CATEGORY) or ""
         self.host = host or socket.gethostname()
         self.timeout = timeout
 
@@ -129,8 +133,16 @@ class NotifyPublisher:
                         url, exc)
             raise _Unreachable(exc)
 
-    def publish(self, severity, title, message="", source=None, meta=None):
+    def publish(self, severity, title, message="", source=None,
+               category=None, meta=None):
         """Send one event. Returns True on success, False otherwise.
+
+        ``category`` defaults to the publisher's own ``category`` (set
+        at construction) when not given per-call, same as ``source``.
+        It is a freeform tag -- the canonical list of expected values is
+        server-configured (``categories:`` in notify-server.yaml, see
+        ``GET /api/categories``); an unrecognized or empty category is
+        still accepted and delivered.
 
         Tries ``server_url`` first, then ``fallback_url`` -- but only
         when the primary was unreachable at the network level; a
@@ -152,6 +164,7 @@ class NotifyPublisher:
             "title": title,
             "message": message,
             "source": source or self.source,
+            "category": category or self.category,
             "host": self.host,
             "meta": meta or {},
         })

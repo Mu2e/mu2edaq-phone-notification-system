@@ -23,6 +23,9 @@ def rule_matches(rule, event):
     if not fnmatch.fnmatch(event.get("host", ""),
                            rule.get("host_pattern") or "*"):
         return False
+    if not fnmatch.fnmatch(event.get("category", ""),
+                           rule.get("category_pattern") or "*"):
+        return False
     regex = rule.get("message_regex") or ""
     if regex:
         try:

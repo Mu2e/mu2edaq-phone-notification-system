@@ -14,6 +14,7 @@ int main(int argc, char** argv) {
     if (argc > 1) opts.server_url = argv[1];
     if (argc > 2) opts.token = argv[2];
     opts.source = "publish-example";
+    opts.category = "DAQ";
 
     mu2edaq::notify::Publisher pub(opts);
     const bool ok = pub.warning("C++ example event",

@@ -8,11 +8,12 @@ notification server
 // link: -lmu2edaq_notify -lcurl   (CMake: mu2edaq::notify)
 
 mu2edaq::notify::Options opts;   // server_url, fallback_url, token,
-                                 // source, host, timeout_ms, discover
+                                 // source, category, host, timeout_ms,
+                                 // discover
 mu2edaq::notify::Publisher pub(opts);
-bool ok = pub.publish(severity, title, message, meta);
-pub.debug(t,m)  pub.info(t,m)  pub.warning(t,m)
-pub.error(t,m)  pub.critical(t,m)
+bool ok = pub.publish(severity, title, message, meta, category);
+pub.debug(t,m,x,cat)  pub.info(t,m,x,cat)  pub.warning(t,m,x,cat)
+pub.error(t,m,x,cat)  pub.critical(t,m,x,cat)
 
 mu2edaq::notify::DiscoveredServer d =
     mu2edaq::notify::discover_server_pair(timeout_s);   // d.primary, d.fallback
@@ -34,6 +35,13 @@ failure) -- an explicit rejection from a reachable server (bad token,
 bad payload) is not retried against the fallback. Returns true when a
 server accepted the event; it never throws on delivery failure. Meta is
 a std::map<std::string,std::string>.
+.PP
+\fBcategory\fR is a freeform subsystem tag (e.g. "Trigger"); an empty
+argument to publish()/debug()/etc. uses Options::category, itself
+resolved from the constructor field or $MU2EDAQ_NOTIFY_CATEGORY. The
+canonical list of expected values is server-configured -- see
+GET /api/categories -- and is not enforced here; an unrecognized or
+omitted category is still accepted and delivered.
 .SH BUILDING
 .nf
 cmake -S . -B build && cmake --build build

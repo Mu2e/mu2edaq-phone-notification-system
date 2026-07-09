@@ -12,7 +12,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer,
-                        String, Text, create_engine)
+                        String, Text, create_engine, inspect, text)
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
@@ -28,6 +28,7 @@ class Event(Base):
     source = Column(String(100), nullable=False, index=True)
     host = Column(String(100), nullable=False, default="")
     severity = Column(String(16), nullable=False, index=True)
+    category = Column(String(100), nullable=False, default="", index=True)
     title = Column(String(200), nullable=False)
     message = Column(Text, nullable=False, default="")
     timestamp = Column(String(40), nullable=False, default="")
@@ -40,6 +41,7 @@ class Event(Base):
             "source": self.source,
             "host": self.host,
             "severity": self.severity,
+            "category": self.category,
             "title": self.title,
             "message": self.message,
             "timestamp": self.timestamp,
@@ -80,6 +82,7 @@ class FilterRule(Base):
     min_severity = Column(String(16), nullable=False, default="warning")
     source_pattern = Column(String(200), nullable=False, default="*")
     host_pattern = Column(String(200), nullable=False, default="*")
+    category_pattern = Column(String(200), nullable=False, default="*")
     message_regex = Column(String(400), nullable=False, default="")
     destinations_json = Column(Text, nullable=False, default="[]")
 
@@ -95,6 +98,7 @@ class FilterRule(Base):
             "min_severity": self.min_severity,
             "source_pattern": self.source_pattern,
             "host_pattern": self.host_pattern,
+            "category_pattern": self.category_pattern,
             "message_regex": self.message_regex,
             "destinations": self.destinations,
         }
@@ -149,6 +153,31 @@ def new_device_token():
     return "mu2edev-" + secrets.token_urlsafe(32)
 
 
+# Columns added to the schema after it was first deployed. create_all()
+# only creates missing tables, not missing columns on tables that
+# already exist, so an already-running deployment needs these added by
+# hand. Kept as a plain list rather than a migration framework -- small
+# and few enough additions that Alembic would be overkill.
+_ADDED_COLUMNS = [
+    ("events", "category", "VARCHAR(100) NOT NULL DEFAULT ''"),
+    ("filter_rules", "category_pattern", "VARCHAR(200) NOT NULL DEFAULT '*'"),
+]
+
+
+def _ensure_columns(engine):
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as conn:
+        for table, column, ddl_type in _ADDED_COLUMNS:
+            if table not in existing_tables:
+                continue  # a brand-new table already has the full schema
+            columns = {c["name"] for c in inspector.get_columns(table)}
+            if column not in columns:
+                conn.execute(text(
+                    "ALTER TABLE %s ADD COLUMN %s %s"
+                    % (table, column, ddl_type)))
+
+
 class Storage:
     """Thread-safe facade over the database (sessions per operation)."""
 
@@ -162,6 +191,7 @@ class Storage:
             connect_args={"check_same_thread": False}
             if db_url.startswith("sqlite") else {})
         Base.metadata.create_all(self.engine)
+        _ensure_columns(self.engine)
         self._session_factory = sessionmaker(bind=self.engine, future=True,
                                              expire_on_commit=False)
 
@@ -172,7 +202,9 @@ class Storage:
     def add_event(self, event):
         with self.session() as s:
             row = Event(source=event["source"], host=event["host"],
-                        severity=event["severity"], title=event["title"],
+                        severity=event["severity"],
+                        category=event.get("category", ""),
+                        title=event["title"],
                         message=event["message"],
                         timestamp=event["timestamp"],
                         meta_json=json.dumps(event.get("meta", {})))
@@ -185,13 +217,16 @@ class Storage:
             row = s.get(Event, event_id)
             return row.to_dict() if row else None
 
-    def list_events(self, limit=100, severity=None, source=None, since_id=None):
+    def list_events(self, limit=100, severity=None, source=None,
+                    category=None, since_id=None):
         with self.session() as s:
             q = s.query(Event).order_by(Event.id.desc())
             if severity:
                 q = q.filter(Event.severity == severity)
             if source:
                 q = q.filter(Event.source == source)
+            if category:
+                q = q.filter(Event.category == category)
             if since_id:
                 q = q.filter(Event.id > since_id)
             return [r.to_dict() for r in q.limit(limit).all()]
@@ -201,6 +236,17 @@ class Storage:
             out = {}
             for sev, in s.query(Event.severity).all():
                 out[sev] = out.get(sev, 0) + 1
+            return out
+
+    def category_counts(self):
+        """Counts keyed by the raw stored category, "" for uncategorized
+        included. Dashboard chips are driven by the configured category
+        list (see cfg["categories"]), not by these keys, so an empty
+        key here just means it contributes nothing to any chip."""
+        with self.session() as s:
+            out = {}
+            for cat, in s.query(Event.category).all():
+                out[cat] = out.get(cat, 0) + 1
             return out
 
     def prune_events(self, retention_days):
@@ -285,7 +331,7 @@ class Storage:
                 row = FilterRule(name=name)
                 s.add(row)
             for key in ("enabled", "min_severity", "source_pattern",
-                        "host_pattern", "message_regex"):
+                        "host_pattern", "category_pattern", "message_regex"):
                 if key in fields and fields[key] is not None:
                     setattr(row, key, fields[key])
             if fields.get("destinations") is not None:
@@ -363,5 +409,6 @@ class Storage:
                         min_severity=rule.get("min_severity", "warning"),
                         source_pattern=rule.get("source_pattern", "*"),
                         host_pattern=rule.get("host_pattern", "*"),
+                        category_pattern=rule.get("category_pattern", "*"),
                         message_regex=rule.get("message_regex", ""),
                         destinations=rule.get("destinations", []))

@@ -12,6 +12,7 @@ class NotifyTest : public CppUnit::TestFixture {
     CPPUNIT_TEST_SUITE(NotifyTest);
     CPPUNIT_TEST(testJsonEscape);
     CPPUNIT_TEST(testBuildPayload);
+    CPPUNIT_TEST(testBuildPayloadCategoryDefaultsToEmpty);
     CPPUNIT_TEST(testPublishWithoutServerFails);
     CPPUNIT_TEST(testPublishReturnsFalseWhenPrimaryAndFallbackUnreachable);
     CPPUNIT_TEST_SUITE_END();
@@ -33,16 +34,24 @@ public:
     void testBuildPayload() {
         const std::string payload = Publisher::build_payload(
             "error", "DTC link down", "ROC link 3 \"lost\" lock",
-            "dtc-monitor", "mu2edaq09", {{"run", "107001"}});
+            "dtc-monitor", "mu2edaq09", {{"run", "107001"}}, "Trigger");
         CPPUNIT_ASSERT(payload.find("\"severity\":\"error\"")
                        != std::string::npos);
         CPPUNIT_ASSERT(payload.find("\"title\":\"DTC link down\"")
                        != std::string::npos);
         CPPUNIT_ASSERT(payload.find("\\\"lost\\\"") != std::string::npos);
+        CPPUNIT_ASSERT(payload.find("\"category\":\"Trigger\"")
+                       != std::string::npos);
         CPPUNIT_ASSERT(payload.find("\"run\":\"107001\"")
                        != std::string::npos);
         CPPUNIT_ASSERT_EQUAL('{', payload.front());
         CPPUNIT_ASSERT_EQUAL('}', payload.back());
+    }
+
+    void testBuildPayloadCategoryDefaultsToEmpty() {
+        const std::string payload = Publisher::build_payload(
+            "info", "t", "m", "src", "host", {});
+        CPPUNIT_ASSERT(payload.find("\"category\":\"\"") != std::string::npos);
     }
 
     void testPublishWithoutServerFails() {

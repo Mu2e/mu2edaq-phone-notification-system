@@ -124,13 +124,15 @@ std::string Publisher::build_payload(const std::string& severity,
                                      const std::string& message,
                                      const std::string& source,
                                      const std::string& host,
-                                     const Meta& meta) {
+                                     const Meta& meta,
+                                     const std::string& category) {
     std::ostringstream os;
     os << "{\"severity\":\"" << json_escape(severity) << "\","
        << "\"title\":\"" << json_escape(title) << "\","
        << "\"message\":\"" << json_escape(message) << "\","
        << "\"source\":\"" << json_escape(source) << "\","
        << "\"host\":\"" << json_escape(host) << "\","
+       << "\"category\":\"" << json_escape(category) << "\","
        << "\"meta\":{";
     bool first = true;
     for (const auto& kv : meta) {
@@ -213,6 +215,8 @@ std::string discover_server(double timeout_s) {
 
 Publisher::Publisher(Options opts) : opts_(std::move(opts)) {
     if (opts_.token.empty()) opts_.token = getenv_str("MU2EDAQ_NOTIFY_TOKEN");
+    if (opts_.category.empty())
+        opts_.category = getenv_str("MU2EDAQ_NOTIFY_CATEGORY");
     if (opts_.host.empty()) opts_.host = local_hostname();
     curl_global_init(CURL_GLOBAL_DEFAULT);
 }
@@ -276,7 +280,8 @@ bool Publisher::post_once(const std::string& base_url,
 }
 
 bool Publisher::publish(const std::string& severity, const std::string& title,
-                        const std::string& message, const Meta& meta) {
+                        const std::string& message, const Meta& meta,
+                        const std::string& category) {
     resolve_server();
 
     std::vector<std::string> urls;
@@ -287,8 +292,10 @@ bool Publisher::publish(const std::string& severity, const std::string& title,
     }
     if (urls.empty()) return false;
 
+    const std::string& cat = category.empty() ? opts_.category : category;
     const std::string payload = build_payload(severity, title, message,
-                                              opts_.source, opts_.host, meta);
+                                              opts_.source, opts_.host, meta,
+                                              cat);
     for (const auto& url : urls) {
         bool unreachable = false;
         const bool ok = post_once(url, payload, &unreachable);

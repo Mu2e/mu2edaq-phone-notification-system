@@ -7,13 +7,19 @@
     <select name="severity" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm">
       {% for s in SEVERITIES %}<option value="{{ s }}" {{ 'selected' if s == 'warning' }}>{{ s }}</option>{% endfor %}
     </select>
+    {% if CATEGORIES %}
+    <select name="category" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm">
+      <option value="">(no category)</option>
+      {% for c in CATEGORIES %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select>
+    {% endif %}
     <button class="bg-sky-600 hover:bg-sky-500 text-white text-sm rounded px-3 py-1">Send test event</button>
   </form>
 </div>
 
-<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
   {% for s in SEVERITIES %}
-  <a href="{{ url_for('web.dashboard', severity=s) }}"
+  <a href="{{ url_for('web.dashboard', severity=s, category=active_category) }}"
      class="rounded-lg border {{ 'ring-2 ring-sky-500' if active_severity == s else '' }} border-slate-800 bg-slate-900 p-3">
     <div class="text-xs uppercase tracking-wide sev-{{ s }}">{{ s }}</div>
     <div class="text-2xl font-bold text-white" id="count-{{ s }}">{{ counts.get(s, 0) }}</div>
@@ -21,8 +27,22 @@
   {% endfor %}
 </div>
 
-{% if active_severity %}
-<p class="mb-3 text-sm text-slate-400">Showing only <span class="sev-{{ active_severity }}">{{ active_severity }}</span>
+{% if CATEGORIES %}
+<div class="flex flex-wrap gap-2 mb-4">
+  {% for c in CATEGORIES %}
+  <a href="{{ url_for('web.dashboard', severity=active_severity, category=c) }}"
+     class="text-xs rounded-full px-3 py-1 border {{ 'ring-2 ring-sky-500 border-sky-500 text-white' if active_category == c else 'border-slate-700 text-slate-300 hover:border-slate-500' }}">
+    {{ c }} <span class="text-slate-500">{{ category_counts.get(c, 0) }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if active_severity or active_category %}
+<p class="mb-3 text-sm text-slate-400">Showing only
+  {% if active_severity %}<span class="sev-{{ active_severity }}">{{ active_severity }}</span>{% endif %}
+  {% if active_severity and active_category %}in{% endif %}
+  {% if active_category %}<span class="text-white">{{ active_category }}</span>{% endif %}
   — <a class="text-sky-400 hover:underline" href="{{ url_for('web.dashboard') }}">clear filter</a></p>
 {% endif %}
 
@@ -32,6 +52,7 @@
      class="block rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800/70 p-3">
     <div class="flex items-center gap-3 flex-wrap">
       <span class="text-xs font-bold uppercase border rounded px-1.5 py-0.5 sev-{{ e.severity }}">{{ e.severity }}</span>
+      {% if e.category %}<span class="text-xs rounded-full px-2 py-0.5 border border-slate-700 text-slate-300">{{ e.category }}</span>{% endif %}
       <span class="font-medium text-white">{{ e.title }}</span>
       <span class="ml-auto text-xs text-slate-500">{{ e.received_at }}</span>
     </div>
@@ -51,26 +72,31 @@
   const es = new EventSource('/api/stream');
   es.addEventListener('event', (msg) => {
     const e = JSON.parse(msg.data);
-    const active = {{ (active_severity or '') | tojson }};
-    if (active && e.severity !== active) return;
+    const activeSeverity = {{ (active_severity or '') | tojson }};
+    const activeCategory = {{ (active_category or '') | tojson }};
+    if (activeSeverity && e.severity !== activeSeverity) return;
+    if (activeCategory && e.category !== activeCategory) return;
     const a = document.createElement('a');
     a.href = '/events/' + e.id;
     a.className = 'block rounded-lg border border-sky-800 bg-slate-900 hover:bg-slate-800/70 p-3';
     a.innerHTML =
       '<div class="flex items-center gap-3 flex-wrap">' +
       '<span class="text-xs font-bold uppercase border rounded px-1.5 py-0.5 sev-' + e.severity + '"></span>' +
-      '<span class="font-medium text-white"></span>' +
-      '<span class="ml-auto text-xs text-slate-500"></span></div>' +
-      '<div class="text-sm text-slate-400 mt-1 truncate"></div>' +
-      '<div class="text-xs text-slate-500 mt-1"></div>';
+      (e.category ? '<span class="text-xs rounded-full px-2 py-0.5 border border-slate-700 text-slate-300 cat-badge"></span>' : '') +
+      '<span class="font-medium text-white title"></span>' +
+      '<span class="ml-auto text-xs text-slate-500 received"></span></div>' +
+      '<div class="text-sm text-slate-400 mt-1 truncate message"></div>' +
+      '<div class="text-xs text-slate-500 mt-1 origin"></div>';
     a.querySelector('.uppercase').textContent = e.severity;
-    a.querySelectorAll('span')[1].textContent = e.title;
-    a.querySelectorAll('span')[2].textContent = e.received_at;
-    a.querySelectorAll('div')[1].textContent = e.message;
-    a.querySelectorAll('div')[2].textContent = e.source + ' @ ' + e.host;
+    const catBadge = a.querySelector('.cat-badge');
+    if (catBadge) catBadge.textContent = e.category;
+    a.querySelector('.title').textContent = e.title;
+    a.querySelector('.received').textContent = e.received_at;
+    a.querySelector('.message').textContent = e.message;
+    a.querySelector('.origin').textContent = e.source + ' @ ' + e.host;
     list.prepend(a);
-    const counter = document.getElementById('count-' + e.severity);
-    if (counter) counter.textContent = parseInt(counter.textContent || '0') + 1;
+    const sevCounter = document.getElementById('count-' + e.severity);
+    if (sevCounter) sevCounter.textContent = parseInt(sevCounter.textContent || '0') + 1;
   });
 </script>
 {% endblock %}

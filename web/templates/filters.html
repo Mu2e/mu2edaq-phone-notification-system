@@ -3,14 +3,15 @@
 {% block content %}
 <h1 class="text-xl font-semibold text-white mb-4">Notification filters</h1>
 <p class="text-sm text-slate-400 mb-4">Events matching an enabled filter are delivered to that filter's destinations.
-A filter matches when the event severity is at or above <em>min severity</em> and the source/host glob patterns
-(and optional message regex) match.</p>
+A filter matches when the event severity is at or above <em>min severity</em> and the source/host/category glob
+patterns (and optional message regex) match.</p>
 
 <div class="rounded-lg border border-slate-800 bg-slate-900 overflow-x-auto mb-6">
   <table class="w-full text-sm">
     <thead><tr class="text-left text-slate-500 border-b border-slate-800">
       <th class="p-2">Name</th><th class="p-2">Min severity</th><th class="p-2">Source</th>
-      <th class="p-2">Host</th><th class="p-2">Message regex</th><th class="p-2">Destinations</th>
+      <th class="p-2">Host</th><th class="p-2">Category</th><th class="p-2">Message regex</th>
+      <th class="p-2">Destinations</th>
       <th class="p-2">Enabled</th><th class="p-2"></th></tr></thead>
     <tbody>
       {% for f in filters %}
@@ -19,6 +20,7 @@ A filter matches when the event severity is at or above <em>min severity</em> an
         <td class="p-2"><span class="sev-{{ f.min_severity }}">{{ f.min_severity }}</span></td>
         <td class="p-2 font-mono text-xs">{{ f.source_pattern }}</td>
         <td class="p-2 font-mono text-xs">{{ f.host_pattern }}</td>
+        <td class="p-2 font-mono text-xs">{{ f.category_pattern }}</td>
         <td class="p-2 font-mono text-xs">{{ f.message_regex or '—' }}</td>
         <td class="p-2">{{ f.destinations | join(', ') or '—' }}</td>
         <td class="p-2">
@@ -34,7 +36,7 @@ A filter matches when the event severity is at or above <em>min severity</em> an
         </td>
       </tr>
       {% else %}
-      <tr><td class="p-3 text-slate-500" colspan="8">No filters defined — no notifications will be delivered.</td></tr>
+      <tr><td class="p-3 text-slate-500" colspan="9">No filters defined — no notifications will be delivered.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -49,6 +51,12 @@ A filter matches when the event severity is at or above <em>min severity</em> an
     </select></label>
   <label class="block">Source pattern (glob)<input name="source_pattern" value="*" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-mono"></label>
   <label class="block">Host pattern (glob)<input name="host_pattern" value="*" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-mono"></label>
+  <label class="block">Category pattern (glob)
+    <input name="category_pattern" value="*" list="category-options" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-mono">
+    <datalist id="category-options">
+      {% for c in CATEGORIES %}<option value="{{ c }}">{% endfor %}
+    </datalist>
+  </label>
   <label class="block">Message regex (optional)<input name="message_regex" class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 font-mono"></label>
   <label class="block">Destinations
     <select name="destinations" multiple class="mt-1 w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 h-24">

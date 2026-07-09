@@ -48,6 +48,7 @@ def create_app(cfg, storage, dispatcher=None, sse_hub=None):
     def _template_globals():
         return {
             "SEVERITIES": SEVERITIES,
+            "CATEGORIES": cfg.get("categories") or [],
             "version": __version__,
             "oidc_enabled": cfg["auth"]["oidc"].get("enabled", False),
             "current_user": session.get("user"),
@@ -113,6 +114,15 @@ def health():
                    events=_storage().event_counts())
 
 
+@api.route("/categories")
+def list_categories():
+    """The operator-configured canonical category list (``categories:``
+    in notify-server.yaml). Events may carry any category string; this
+    is only the suggested set used to populate pickers."""
+    cfg = current_app.config["NOTIFY_CFG"]
+    return jsonify(categories=cfg.get("categories") or [])
+
+
 @api.route("/events", methods=["POST"])
 @auth.require_api_token
 def post_event():
@@ -133,6 +143,7 @@ def list_events():
         limit=limit,
         severity=request.args.get("severity"),
         source=request.args.get("source"),
+        category=request.args.get("category"),
         since_id=request.args.get("since_id", type=int))
     return jsonify(events=events)
 
@@ -217,10 +228,14 @@ def stream():
 @auth.require_login
 def dashboard():
     severity = request.args.get("severity") or None
-    events = _storage().list_events(limit=100, severity=severity)
+    category = request.args.get("category") or None
+    events = _storage().list_events(limit=100, severity=severity,
+                                    category=category)
     return render_template("dashboard.html", events=events,
                            counts=_storage().event_counts(),
-                           active_severity=severity)
+                           category_counts=_storage().category_counts(),
+                           active_severity=severity,
+                           active_category=category)
 
 @web.route("/events/<int:event_id>")
 @auth.require_login
@@ -246,6 +261,7 @@ def filters_page():
                 min_severity=form.get("min_severity", "warning"),
                 source_pattern=form.get("source_pattern", "*") or "*",
                 host_pattern=form.get("host_pattern", "*") or "*",
+                category_pattern=form.get("category_pattern", "*") or "*",
                 message_regex=form.get("message_regex", ""),
                 destinations=form.getlist("destinations"))
         return redirect(url_for("web.filters_page"))
@@ -357,6 +373,7 @@ def test_event():
     event = normalize_event({
         "source": "web-ui",
         "severity": request.form.get("severity", "warning"),
+        "category": request.form.get("category", ""),
         "title": request.form.get("title") or "Test notification",
         "message": request.form.get("message")
         or "Test event sent from the web interface.",

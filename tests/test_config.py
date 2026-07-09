@@ -8,6 +8,7 @@ def test_defaults():
     assert cfg["database"]["url"].startswith("sqlite:///")
     assert cfg["server"]["secret_key"]          # auto-generated
     assert cfg["auth"]["enrollment_secret"]     # auto-generated
+    assert cfg["categories"] == []              # no canonical list by default
 
 
 def test_yaml_file_overrides_defaults(tmp_path):
@@ -102,3 +103,27 @@ def test_discovery_fallback_url_from_yaml_and_env(tmp_path):
         "MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL": "https://from-env.example",
     })
     assert cfg["discovery"]["fallback_url"] == "https://from-env.example"
+
+
+def test_categories_from_yaml(tmp_path):
+    path = tmp_path / "cfg.yaml"
+    path.write_text(
+        "categories:\n  - DAQ\n  - Trigger\n  - Tracker\n")
+    cfg = load_config(config_file=str(path), environ={})
+    assert cfg["categories"] == ["DAQ", "Trigger", "Tracker"]
+
+
+def test_categories_env_var_appends(tmp_path):
+    path = tmp_path / "cfg.yaml"
+    path.write_text("categories:\n  - DAQ\n")
+    cfg = load_config(config_file=str(path),
+                      environ={"MU2EDAQ_NOTIFY_CATEGORY": "Trigger"})
+    assert cfg["categories"] == ["DAQ", "Trigger"]
+
+
+def test_categories_cli_override_replaces(tmp_path):
+    path = tmp_path / "cfg.yaml"
+    path.write_text("categories:\n  - DAQ\n")
+    cfg = load_config(config_file=str(path),
+                      overrides=[(("categories",), ["Tracker", "Calorimeter"])])
+    assert cfg["categories"] == ["Tracker", "Calorimeter"]

@@ -87,13 +87,28 @@ APNs auth key at developer.apple.com, save it as `config/apns_key.p8`
 (git-ignored), and fill in `apns.key_id`, `apns.team_id`,
 `apns.bundle_id`, and `apns.enabled: true`.
 
+## Categories
+
+Events can carry a `category` tag (e.g. `Tracker`, `Trigger`) alongside
+severity. The canonical list is operator-configurable in
+`config/notify-server.yaml` (`categories:`, ships with DAQ, Trigger,
+Detector Controls, Tracker, Calorimeter, Cosmic Ray Veto, and Stopping
+Target Monitor) and is served at `GET /api/categories` for the web UI
+and iOS app to build pickers from. A category is a freeform string,
+though — an event with an unrecognized or missing category is still
+accepted and delivered, never dropped. Filter rules route by category
+the same way they route by source/host (`category_pattern`, an
+fnmatch-style glob, default `*`), so e.g. a `Tracker` filter can send
+only tracker events to a tracker-specific Slack channel.
+
 ## Publishing events
 
 Python (no dependencies beyond the stdlib):
 
 ```python
 from mu2edaq_notify import NotifyPublisher
-pub = NotifyPublisher(token="api-token", source="dtc-monitor")   # server via discovery
+pub = NotifyPublisher(token="api-token", source="dtc-monitor",
+                      category="Trigger")   # server via discovery
 pub.error("DTC link down", "ROC link 3 lost lock", meta={"run": "107001"})
 ```
 
@@ -104,11 +119,12 @@ C++ (`cmake -S . -B build && cmake --build build`, link `mu2edaq::notify`):
 mu2edaq::notify::Options opts;
 opts.token = "api-token";
 opts.source = "dtc-monitor";
+opts.category = "Trigger";
 mu2edaq::notify::Publisher pub(opts);
 pub.error("DTC link down", "ROC link 3 lost lock");
 ```
 
-Shell: `mu2edaq-notify send --severity error "DTC link down" "detail"`.
+Shell: `mu2edaq-notify send --severity error --category Trigger "DTC link down" "detail"`.
 
 Both libraries find the server automatically via
 [mu2edaq-discovery](https://github.com/Mu2e/mu2edaq-discovery)

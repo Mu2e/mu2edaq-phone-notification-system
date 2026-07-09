@@ -37,7 +37,7 @@ Everything below is the long version.
 
 - Xcode 15+, [XcodeGen](https://github.com/yonaskolb/XcodeGen)
   (`brew install xcodegen`)
-- An Apple Developer account for on-device push (see §7)
+- An Apple Developer account for on-device push (see §8)
 
 ## 2. Install the server
 
@@ -151,7 +151,34 @@ Open `http://mu2edaq01:8095/` — the event appears on the dashboard live
 For production, run the start script from systemd or the DAQ's standard
 process management; it refuses to double-start via `data/notify-server.pid`.
 
-## 5. Filters and destinations (the routing)
+## 5. Categories (subsystem tags)
+
+Events can carry a `category` (e.g. `Tracker`, `Trigger`) so filters can
+route by subsystem. The canonical list is configured once in
+`config/notify-server.yaml`:
+
+```yaml
+categories:
+  - "DAQ"
+  - "Trigger"
+  - "Detector Controls"
+  - "Tracker"
+  - "Calorimeter"
+  - "Cosmic Ray Veto"
+  - "Stopping Target Monitor"
+```
+
+This list drives the dashboard's category chips, the filter form's
+category picker, and `GET /api/categories` (which the iOS app fetches so
+it doesn't need a new build when categories change). It is **not**
+enforced at ingest: an event published with a category not on this list
+— or with none at all — is still stored and delivered, never dropped.
+Add, rename, or remove entries here at any time; restart the server to
+pick up the change (`./stop-mu2edaq-notify-server.sh &&
+./start-mu2edaq-notify-server.sh`, or `launchctl kickstart -k …` if
+under a LaunchAgent).
+
+## 6. Filters and destinations (the routing)
 
 Nothing is delivered until a **filter** routes events to a
 **destination**. The shipped config seeds one destination (`all-phones`,
@@ -169,9 +196,15 @@ phones). Manage everything else in the web UI:
    - event severity ≥ the rule's minimum severity
    - event source matches the source glob (e.g. `dtc-*`)
    - event host matches the host glob (e.g. `mu2edaq0?`)
+   - event category matches the category glob (e.g. `Tracker`, or `*`
+     for any/uncategorized)
    - the optional regex matches the message
    Matched events go to every destination the rule lists; multiple
    matching rules union their destinations (each destination fires once).
+   A common pattern: one `category_pattern: "Tracker"` filter routing to
+   a tracker-specific Slack channel, alongside the catch-all
+   `errors-to-phones` filter (`category_pattern: "*"`) that still pages
+   everyone regardless of subsystem.
 3. Repeated identical events (same source + severity + title) are
    suppressed within `dispatch.rate_limit_seconds` (default 60) so an
    error storm doesn't page a phone 500 times. Suppressions are recorded
@@ -181,7 +214,7 @@ Use the dashboard's **Send test event** button to exercise a rule, then
 check the event's detail page — every delivery attempt (sent / logged /
 failed / suppressed, with the reason) is listed there.
 
-## 6. Publishing from DAQ applications
+## 7. Publishing from DAQ applications
 
 **Python** (no dependencies — copy nothing, just `pip install -e` this
 repo or vendor `src/mu2edaq_notify/{events,publisher}.py`):
@@ -240,7 +273,7 @@ can't discover at all — set `MU2EDAQ_NOTIFY_URL` (and optionally
 `MU2EDAQ_NOTIFY_FALLBACK_URL`) explicitly instead, or pass
 `server_url=`/`--server` and `fallback_url=`/`--fallback-server`.
 
-## 7. Apple push (APNs) — going from log-only to real pushes
+## 8. Apple push (APNs) — going from log-only to real pushes
 
 Out of the box `apns.enabled` is false and the server runs **log-only**:
 phone deliveries are recorded (status `logged`) but not sent to Apple.
@@ -273,7 +306,7 @@ step last.
    log with Apple's reason string (e.g. `BadDeviceToken` usually means a
    sandbox/production mismatch with `apns.sandbox`).
 
-## 8. Build and enroll the iPhone app
+## 9. Build and enroll the iPhone app
 
 ```bash
 cd ios/Mu2eNotify
@@ -296,7 +329,7 @@ Enrollment:
 4. Send a test event at or above the phone's minimum severity — with
    APNs enabled the banner arrives even when the phone is off-site.
 
-## 9. Fermilab SSO for the web interface (optional)
+## 10. Fermilab SSO for the web interface (optional)
 
 Request an OIDC client registration from Fermilab SSO
 (PingFederate) with redirect URI
@@ -332,7 +365,7 @@ a temporary self-signed certificate for quick browser testing, but the
 iPhone will not accept it unless that certificate is trusted on the
 device.
 
-## 10. Tests
+## 11. Tests
 
 ```bash
 venv/bin/pytest                # Python: server, filters, storage, publisher, zmq
@@ -340,7 +373,7 @@ ctest --test-dir build         # C++ (needs CppUnit installed)
 # iOS: Mu2eNotifyTests scheme in Xcode (Cmd-U)
 ```
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Symptom | Check |
 |---|---|
@@ -348,7 +381,7 @@ ctest --test-dir build         # C++ (needs CppUnit installed)
 | Publisher gets 401 | Token not in `auth.api_tokens`, or `Bearer ` prefix missing |
 | Event on dashboard but nothing delivered | Filters page: does any enabled rule match its severity/source/host? Event detail page shows per-delivery status |
 | Delivery status `suppressed` | Rate limiting — identical event within `dispatch.rate_limit_seconds` |
-| Delivery status `logged` for phones | APNs still disabled (§7), or the device has no APNs token yet |
+| Delivery status `logged` for phones | APNs still disabled (§8), or the device has no APNs token yet |
 | Push fails `BadDeviceToken` | `apns.sandbox` doesn't match how the app was installed (Xcode = sandbox, TestFlight/App Store = production) |
 | QR scan does nothing on the phone | Enrollment token expired (default 30 min) — generate a new one; check `server.base_url` is reachable from the phone |
 | Discovery not finding the server | mu2edaq-discovery installed in the venv? Server started without `--no-discovery` and `discovery.enabled: true`? Multicast doesn't cross the FNAL gateway — set `MU2EDAQ_NOTIFY_URL` off-network |

@@ -20,6 +20,14 @@ machine, \fB--port\fR, and http/https matching TLS) is the primary
 address, and \fBdiscovery.fallback_url\fR (typically the public
 reverse-proxy URL) rides along as ANNOUNCE metadata for publishers to
 use only when the primary is unreachable.
+.PP
+Events may carry a \fBcategory\fR subsystem tag (e.g. Trigger,
+Tracker). The canonical list is \fBcategories:\fR in the YAML config,
+served at \fBGET /api/categories\fR for the web UI and iOS app to build
+pickers from; it is not enforced at ingest, so an unrecognized or
+missing category is still accepted and delivered. Filter rules route by
+category the same way they route by source/host
+(\fBcategory_pattern\fR, an fnmatch glob, default "*").
 .SH OPTIONS
 .TP
 .B --config FILE
@@ -52,7 +60,8 @@ MU2EDAQ_NOTIFY_BASE_URL, MU2EDAQ_NOTIFY_DB_URL, MU2EDAQ_NOTIFY_API_TOKEN,
 MU2EDAQ_NOTIFY_APNS_ENABLED, MU2EDAQ_NOTIFY_ZMQ_ENABLED,
 MU2EDAQ_NOTIFY_ZMQ_BIND, MU2EDAQ_NOTIFY_DISCOVERY_ENABLED,
 MU2EDAQ_NOTIFY_DISCOVERY_HOST, MU2EDAQ_NOTIFY_DISCOVERY_PORT,
-MU2EDAQ_NOTIFY_DISCOVERY_SCHEME, MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL.
+MU2EDAQ_NOTIFY_DISCOVERY_SCHEME, MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL,
+MU2EDAQ_NOTIFY_CATEGORY (appends one category to the canonical list).
 Precedence: command line > environment > config file > defaults.
 .SH FILES
 config/notify-server.yaml (configuration),

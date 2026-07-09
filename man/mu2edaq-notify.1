@@ -7,6 +7,7 @@ mu2edaq-notify \- publish an event to the Mu2e DAQ notification server
 [\fB--token\fR \fITOKEN\fR] [\fB--no-discover\fR]
 .B send
 [\fB--severity\fR \fILEVEL\fR] [\fB--source\fR \fINAME\fR]
+[\fB--category\fR \fINAME\fR]
 [\fB--meta\fR \fIKEY=VALUE\fR]... \fITITLE\fR [\fIMESSAGE\fR]
 .br
 .B mu2edaq-notify
@@ -30,6 +31,11 @@ debug, info, warning (default), error, or critical.
 .TP
 .B --source NAME
 Publishing application name shown in the dashboard (default: cli).
+.TP
+.B --category NAME
+Subsystem tag, e.g. Trigger, Tracker. Freeform -- see the server's
+GET /api/categories for the configured canonical list; an unrecognized
+or omitted category is still accepted.
 .TP
 .B --meta KEY=VALUE
 Attach metadata; repeatable.

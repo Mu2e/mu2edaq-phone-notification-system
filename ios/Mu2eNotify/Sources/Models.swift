@@ -34,6 +34,7 @@ struct NotifyEvent: Identifiable, Codable, Equatable {
     let source: String
     let host: String
     let severity: String
+    let category: String
     let title: String
     let message: String
     let timestamp: String
@@ -41,7 +42,8 @@ struct NotifyEvent: Identifiable, Codable, Equatable {
     let meta: [String: String]
 
     enum CodingKeys: String, CodingKey {
-        case id, source, host, severity, title, message, timestamp, meta
+        case id, source, host, severity, category, title, message, timestamp,
+             meta
         case receivedAt = "received_at"
     }
 
@@ -50,6 +52,14 @@ struct NotifyEvent: Identifiable, Codable, Equatable {
 
 struct EventListResponse: Codable {
     let events: [NotifyEvent]
+}
+
+/// The operator-configured canonical category list (GET /api/categories).
+/// Events may carry any category string; this is only the suggested set
+/// used to populate pickers, fetched at runtime so the app doesn't need
+/// a new build when categories change on the server.
+struct CategoriesResponse: Codable {
+    let categories: [String]
 }
 
 struct HealthResponse: Codable {

@@ -59,6 +59,45 @@ def test_https_context_uses_certifi_when_available():
     assert ctx.verify_mode.name == "CERT_REQUIRED"
 
 
+# Category -------------------------------------------------------------------
+
+def test_publish_category_per_call(live_server, storage):
+    pub = NotifyPublisher(server_url=live_server, token="test-api-token",
+                          discover=False)
+    assert pub.error("Categorized", category="Tracker") is True
+    assert storage.list_events()[0]["category"] == "Tracker"
+
+
+def test_publish_category_defaults_from_constructor(live_server, storage):
+    pub = NotifyPublisher(server_url=live_server, token="test-api-token",
+                          category="Trigger", discover=False)
+    assert pub.warning("Uses constructor default") is True
+    assert storage.list_events()[0]["category"] == "Trigger"
+
+
+def test_publish_category_per_call_overrides_constructor_default(
+        live_server, storage):
+    pub = NotifyPublisher(server_url=live_server, token="test-api-token",
+                          category="Trigger", discover=False)
+    assert pub.warning("Override", category="Tracker") is True
+    assert storage.list_events()[0]["category"] == "Tracker"
+
+
+def test_publish_without_category_is_uncategorized(live_server, storage):
+    pub = NotifyPublisher(server_url=live_server, token="test-api-token",
+                          discover=False)
+    assert pub.warning("No category") is True
+    assert storage.list_events()[0]["category"] == ""
+
+
+def test_category_env_var(live_server, storage, monkeypatch):
+    monkeypatch.setenv("MU2EDAQ_NOTIFY_CATEGORY", "Calorimeter")
+    pub = NotifyPublisher(server_url=live_server, token="test-api-token",
+                          discover=False)
+    assert pub.warning("From env category") is True
+    assert storage.list_events()[0]["category"] == "Calorimeter"
+
+
 # Fallback (local-primary, public-secondary) behavior ------------------------
 
 UNREACHABLE = "http://127.0.0.1:1"   # connection refused, fails fast

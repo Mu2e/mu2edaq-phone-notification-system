@@ -41,6 +41,11 @@ can be opened directly with Xcode.
 The dashboard refreshes when it opens, when the app returns to the
 foreground, when a push is received, and every few seconds while the
 dashboard is visible. Pull-to-refresh still forces an immediate fetch.
+Each refresh also fetches `GET /api/categories`, so the category filter
+chips reflect the server's configured list without a new app build.
+Events display their category as a badge when set; an event with no
+category shows none. Category filtering combines (AND) with the
+severity filter.
 
 The Settings tab shows three push-related states:
 

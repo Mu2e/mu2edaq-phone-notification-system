@@ -85,6 +85,31 @@ def test_apns_alert_payload_is_plain_visible_notification(cfg):
     assert payload["aps"]["sound"] == "default"
     assert "interruption-level" not in payload["aps"]
     assert all(value is not None for value in payload["aps"].values())
+    assert payload["event"]["category"] == "Trigger"
+
+
+def test_category_pattern_routes_to_matching_destination_only(
+        storage, cfg, monkeypatch):
+    monkeypatch.setattr(dispatch_mod, "send_slack",
+                        lambda url, e: ("sent", ""))
+    storage.upsert_destination("tracker-slack", type="slack",
+                               webhook_url="https://tracker")
+    storage.upsert_destination("trigger-slack", type="slack",
+                               webhook_url="https://trigger")
+    storage.upsert_filter("tracker-rule", min_severity="warning",
+                          category_pattern="Tracker",
+                          destinations=["tracker-slack"])
+    storage.upsert_filter("trigger-rule", min_severity="warning",
+                          category_pattern="Trigger",
+                          destinations=["trigger-slack"])
+    dispatcher = make_dispatcher(storage, cfg)
+    event = storage.add_event(
+        normalize_event(make_event(category="Tracker")))
+    dispatcher._dispatch(event)
+
+    destinations = {d["destination"] for d in
+                    storage.deliveries_for_event(event["id"])}
+    assert destinations == {"tracker-slack"}
 
 
 def test_no_matching_rule_means_no_delivery(storage, cfg):

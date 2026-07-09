@@ -14,6 +14,7 @@ final class AppState: ObservableObject {
         Severity.warning.rawValue
 
     @Published var events: [NotifyEvent] = []
+    @Published var categories: [String] = []
     @Published var lastError: String?
     @Published var isRefreshing = false
     @Published var pushStatus = "Unknown"
@@ -156,9 +157,13 @@ final class AppState: ObservableObject {
         do {
             async let fetchedEvents = client.fetchEvents()
             async let fetchedHealth = client.fetchHealth()
+            async let fetchedCategories = client.fetchCategories()
             events = try await fetchedEvents
             if let health = try? await fetchedHealth {
                 serverApnsEnabled = health.apnsEnabled
+            }
+            if let fetchedCategories = try? await fetchedCategories {
+                categories = fetchedCategories
             }
             lastError = nil
         } catch {

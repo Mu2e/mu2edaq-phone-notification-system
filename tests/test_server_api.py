@@ -1,6 +1,9 @@
 import json
 
 from mu2edaq_notify.server import auth
+from mu2edaq_notify.server.app import create_app
+from mu2edaq_notify.server.config import load_config
+from mu2edaq_notify.server.storage import Storage
 from conftest import make_event
 
 
@@ -8,6 +11,22 @@ def test_health(client):
     data = client.get("/api/health").get_json()
     assert data["status"] == "ok"
     assert "version" in data
+
+
+def test_categories_endpoint_empty_by_default(client):
+    assert client.get("/api/categories").get_json() == {"categories": []}
+
+
+def test_categories_endpoint_reflects_config(tmp_path):
+    cfg = load_config(environ={}, overrides=[
+        (("database", "url"), "sqlite:///%s" % (tmp_path / "cat.db")),
+        (("categories",), ["DAQ", "Trigger", "Tracker"]),
+    ])
+    storage = Storage(cfg["database"]["url"])
+    app = create_app(cfg, storage)
+    app.config["TESTING"] = True
+    resp = app.test_client().get("/api/categories")
+    assert resp.get_json() == {"categories": ["DAQ", "Trigger", "Tracker"]}
 
 
 def test_post_event_requires_token(client):
@@ -33,6 +52,28 @@ def test_post_event_and_fetch(client, auth_header):
 def test_post_bad_event_rejected(client, auth_header):
     resp = client.post("/api/events", json={}, headers=auth_header)
     assert resp.status_code == 400
+
+
+def test_post_event_with_category_and_filter_by_it(client, auth_header):
+    client.post("/api/events", json=make_event(category="Tracker"),
+               headers=auth_header)
+    client.post("/api/events", json=make_event(category="Trigger"),
+               headers=auth_header)
+
+    tracker_only = client.get("/api/events?category=Tracker",
+                              headers=auth_header).get_json()["events"]
+    assert len(tracker_only) == 1
+    assert tracker_only[0]["category"] == "Tracker"
+
+    all_events = client.get("/api/events",
+                            headers=auth_header).get_json()["events"]
+    assert len(all_events) == 2
+
+
+def test_post_event_category_defaults_to_empty(client, auth_header):
+    resp = client.post("/api/events", json={"title": "no category"},
+                       headers=auth_header)
+    assert resp.get_json()["category"] == ""
 
 
 def test_device_enrollment_flow(client, app, auth_header):
@@ -93,14 +134,42 @@ def test_web_pages_render(client, auth_header, app):
         assert resp.status_code == 200, path
 
 
+def test_dashboard_renders_category_chips_when_configured(tmp_path):
+    cfg = load_config(environ={}, overrides=[
+        (("database", "url"), "sqlite:///%s" % (tmp_path / "chips.db")),
+        (("auth", "api_tokens"), ["tok"]),
+        (("categories",), ["DAQ", "Tracker"]),
+    ])
+    storage = Storage(cfg["database"]["url"])
+    app = create_app(cfg, storage)
+    app.config["TESTING"] = True
+    client = app.test_client()
+    client.post("/api/events", json=make_event(category="Tracker"),
+               headers={"Authorization": "Bearer tok"})
+
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert b"Tracker" in resp.data
+    assert b"DAQ" in resp.data
+
+    filtered = client.get("/?category=Tracker")
+    assert filtered.status_code == 200
+    assert b"DTC link down" in filtered.data
+
+    filtered_out = client.get("/?category=DAQ")
+    assert b"DTC link down" not in filtered_out.data
+
+
 def test_filter_management_via_web(client, app):
     client.post("/destinations", data={"name": "slackdest", "type": "slack",
                                        "webhook_url": "https://x"})
     client.post("/filters", data={"name": "webrule",
                                   "min_severity": "error",
                                   "source_pattern": "dtc-*",
+                                  "category_pattern": "Trigger",
                                   "destinations": ["slackdest"]})
     storage = app.config["NOTIFY_STORAGE"]
     rules = storage.list_filters()
     assert rules[0]["name"] == "webrule"
     assert rules[0]["destinations"] == ["slackdest"]
+    assert rules[0]["category_pattern"] == "Trigger"

@@ -78,6 +78,12 @@ DEFAULTS = {
     "dispatch": {
         "rate_limit_seconds": 60,
     },
+    # Canonical, operator-editable list of subsystem tags. Populates the
+    # web UI's category pickers and GET /api/categories. Events may carry
+    # any category string -- this list is not enforced at ingest, so an
+    # unrecognized or missing category never causes an event to be
+    # dropped -- but filter rules typically route by these names.
+    "categories": [],
     "seed": {
         "destinations": [],
         "filters": [],
@@ -105,6 +111,7 @@ ENV_MAP = {
     "MU2EDAQ_NOTIFY_DISCOVERY_PORT": ("discovery", "port"),
     "MU2EDAQ_NOTIFY_DISCOVERY_SCHEME": ("discovery", "scheme"),
     "MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL": ("discovery", "fallback_url"),
+    "MU2EDAQ_NOTIFY_CATEGORY": ("categories",),
 }
 
 

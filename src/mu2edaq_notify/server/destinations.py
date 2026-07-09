@@ -75,7 +75,8 @@ class ApnsSender:
         payload = {
             "aps": aps,
             "event": {k: event.get(k) for k in
-                      ("id", "source", "host", "severity", "timestamp")},
+                      ("id", "source", "host", "severity", "category",
+                       "timestamp")},
         }
         if not self.enabled:
             log.info("APNs log-only: would push %r to %s...",
@@ -114,15 +115,24 @@ def _post_webhook(url, payload):
 
 def send_slack(webhook_url, event):
     color = "#%06x" % SEVERITY_COLORS.get(event["severity"], 0x2E86DE)
+    fields = [
+        {"title": "Source", "value": event["source"], "short": True},
+        {"title": "Host", "value": event["host"], "short": True},
+    ]
+    if event.get("category"):
+        fields.append({"title": "Category", "value": event["category"],
+                       "short": True})
+    fields.append({"title": "Time", "value": event["timestamp"],
+                   "short": True})
+    title = "[%s] %s" % (event["severity"].upper(), event["title"])
+    if event.get("category"):
+        title = "[%s/%s] %s" % (event["severity"].upper(),
+                                event["category"], event["title"])
     payload = {
-        "text": "[%s] %s" % (event["severity"].upper(), event["title"]),
+        "text": title,
         "attachments": [{
             "color": color,
-            "fields": [
-                {"title": "Source", "value": event["source"], "short": True},
-                {"title": "Host", "value": event["host"], "short": True},
-                {"title": "Time", "value": event["timestamp"], "short": True},
-            ],
+            "fields": fields,
             "text": event["message"],
         }],
     }
@@ -130,17 +140,23 @@ def send_slack(webhook_url, event):
 
 
 def send_discord(webhook_url, event):
+    title = "[%s] %s" % (event["severity"].upper(), event["title"])
+    if event.get("category"):
+        title = "[%s/%s] %s" % (event["severity"].upper(),
+                                event["category"], event["title"])
+    fields = [
+        {"name": "Source", "value": event["source"] or "-", "inline": True},
+        {"name": "Host", "value": event["host"] or "-", "inline": True},
+    ]
+    if event.get("category"):
+        fields.append({"name": "Category", "value": event["category"],
+                       "inline": True})
     payload = {
         "embeds": [{
-            "title": "[%s] %s" % (event["severity"].upper(), event["title"]),
+            "title": title,
             "description": event["message"][:2000],
             "color": SEVERITY_COLORS.get(event["severity"], 0x2E86DE),
-            "fields": [
-                {"name": "Source", "value": event["source"] or "-",
-                 "inline": True},
-                {"name": "Host", "value": event["host"] or "-",
-                 "inline": True},
-            ],
+            "fields": fields,
             "timestamp": event["timestamp"],
         }],
     }

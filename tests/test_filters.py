@@ -2,6 +2,7 @@ from mu2edaq_notify.server.filters import match_destinations, rule_matches
 
 EVENT = {
     "source": "dtc-monitor", "host": "mu2edaq09", "severity": "error",
+    "category": "Trigger",
     "title": "DTC link down", "message": "ROC link 3 lost lock",
 }
 
@@ -9,6 +10,7 @@ EVENT = {
 def rule(**overrides):
     base = {"name": "r", "enabled": True, "min_severity": "warning",
             "source_pattern": "*", "host_pattern": "*",
+            "category_pattern": "*",
             "message_regex": "", "destinations": ["phones"]}
     base.update(overrides)
     return base
@@ -29,6 +31,19 @@ def test_source_and_host_globs():
     assert not rule_matches(rule(source_pattern="cfo-*"), EVENT)
     assert rule_matches(rule(host_pattern="mu2edaq0?"), EVENT)
     assert not rule_matches(rule(host_pattern="mu2edaq1?"), EVENT)
+
+
+def test_category_glob():
+    assert rule_matches(rule(category_pattern="Trigger"), EVENT)
+    assert rule_matches(rule(category_pattern="Trig*"), EVENT)
+    assert not rule_matches(rule(category_pattern="Tracker"), EVENT)
+    assert rule_matches(rule(category_pattern="*"), EVENT)
+
+
+def test_category_pattern_matches_uncategorized_events():
+    uncategorized = dict(EVENT, category="")
+    assert rule_matches(rule(category_pattern="*"), uncategorized)
+    assert not rule_matches(rule(category_pattern="Trigger"), uncategorized)
 
 
 def test_message_regex():

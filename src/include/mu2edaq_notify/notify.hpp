@@ -35,6 +35,11 @@ struct Options {
                                // discovery ANNOUNCE meta.fallback_url
     std::string token;         // empty: $MU2EDAQ_NOTIFY_TOKEN
     std::string source = "cpp";
+    std::string category;      // empty: $MU2EDAQ_NOTIFY_CATEGORY, else none.
+                               // Default subsystem tag for this publisher's
+                               // events (e.g. "Tracker"); freeform, see the
+                               // server's GET /api/categories for the
+                               // configured list. Overridable per publish().
     std::string host;          // empty: gethostname()
     long timeout_ms = 5000;
     bool discover = true;      // use mu2edaq-discovery when no URL is known
@@ -46,20 +51,27 @@ class Publisher {
 public:
     explicit Publisher(Options opts = {});
 
-    // Send one event. Returns true when the server accepted it.
+    // Send one event. Returns true when the server accepted it. An
+    // empty `category` uses the publisher's Options::category default.
     bool publish(const std::string& severity, const std::string& title,
-                 const std::string& message = "", const Meta& meta = {});
+                 const std::string& message = "", const Meta& meta = {},
+                 const std::string& category = "");
 
     bool debug(const std::string& t, const std::string& m = "",
-               const Meta& x = {}) { return publish("debug", t, m, x); }
+               const Meta& x = {}, const std::string& cat = "")
+        { return publish("debug", t, m, x, cat); }
     bool info(const std::string& t, const std::string& m = "",
-              const Meta& x = {}) { return publish("info", t, m, x); }
+              const Meta& x = {}, const std::string& cat = "")
+        { return publish("info", t, m, x, cat); }
     bool warning(const std::string& t, const std::string& m = "",
-                 const Meta& x = {}) { return publish("warning", t, m, x); }
+                 const Meta& x = {}, const std::string& cat = "")
+        { return publish("warning", t, m, x, cat); }
     bool error(const std::string& t, const std::string& m = "",
-               const Meta& x = {}) { return publish("error", t, m, x); }
+               const Meta& x = {}, const std::string& cat = "")
+        { return publish("error", t, m, x, cat); }
     bool critical(const std::string& t, const std::string& m = "",
-                  const Meta& x = {}) { return publish("critical", t, m, x); }
+                  const Meta& x = {}, const std::string& cat = "")
+        { return publish("critical", t, m, x, cat); }
 
     const std::string& server_url() const { return opts_.server_url; }
     const std::string& fallback_url() const { return opts_.fallback_url; }
@@ -79,7 +91,8 @@ public:
                                      const std::string& message,
                                      const std::string& source,
                                      const std::string& host,
-                                     const Meta& meta);
+                                     const Meta& meta,
+                                     const std::string& category = "");
 };
 
 // Result of a discovery query: the responder's own advertised address

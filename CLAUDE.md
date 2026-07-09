@@ -27,8 +27,10 @@ cd ios/Mu2eNotify && xcodegen generate         # iOS Xcode project
 - `src/mu2edaq_notify/publisher.py` — stdlib-only HTTP publisher (never
   raises on delivery failure); `cli.py` is the `mu2edaq-notify` CLI
 - `src/mu2edaq_notify/server/` — `config.py` (CLI > env > YAML > defaults),
-  `storage.py` (SQLAlchemy: Event/Device/FilterRule/Destination/Delivery),
-  `filters.py` (glob + regex + severity matching), `dispatch.py`
+  `storage.py` (SQLAlchemy: Event/Device/FilterRule/Destination/Delivery;
+  `_ensure_columns()` hand-rolls ALTER TABLE for columns added after
+  first deploy, since `create_all()` only creates missing tables),
+  `filters.py` (glob + regex + severity + category matching), `dispatch.py`
   (daemon-thread queue worker, rate limiting), `destinations.py` (APNs
   HTTP/2+JWT with log-only fallback, Slack/Discord webhooks), `auth.py`
   (API tokens, hashed device tokens, JWT enrollment tokens, OIDC),
@@ -48,11 +50,15 @@ session per operation (thread-safe).
 ## Configuration Schema
 
 See `config/notify-server.yaml` (fully commented). Keys: `server`
-(host/port/base_url/secret_key), `database` (SQLAlchemy url,
-retention_days), `auth` (api_tokens, enrollment secret/TTL, oidc),
-`apns` (key_file/key_id/team_id/bundle_id/sandbox/enabled), `zmq`
-(connect/bind/defaults), `discovery`, `dispatch` (rate_limit_seconds),
-`seed` (first-run filters/destinations).
+(host/port/base_url/secret_key/tls), `database` (SQLAlchemy url,
+retention_days), `auth` (api_tokens, api_tokens_file, enrollment
+secret/TTL, oidc), `apns` (key_file/key_id/team_id/bundle_id/sandbox/
+enabled), `zmq` (connect/bind/defaults), `discovery` (host/port/scheme
+default to the local server; fallback_url rides in ANNOUNCE meta),
+`dispatch` (rate_limit_seconds), `categories` (canonical subsystem tag
+list, served at `GET /api/categories`; events accept any category
+string regardless -- this list is only for UI pickers and is not
+enforced at ingest), `seed` (first-run filters/destinations).
 
 ## Testing
 

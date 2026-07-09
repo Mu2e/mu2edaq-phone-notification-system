@@ -33,6 +33,10 @@ def main(argv=None):
     send = sub.add_parser("send", help="publish one event")
     send.add_argument("--severity", choices=SEVERITIES, default="warning")
     send.add_argument("--source", default="cli")
+    send.add_argument("--category", default="",
+                      help="subsystem tag, e.g. Trigger, Tracker "
+                      "(freeform; see the server's GET /api/categories "
+                      "for the configured list)")
     send.add_argument("--meta", action="append", default=[],
                       metavar="KEY=VALUE", help="attach metadata (repeatable)")
     send.add_argument("title")
@@ -77,7 +81,7 @@ def main(argv=None):
         key, _, value = item.partition("=")
         meta[key] = value
     ok = pub.publish(args.severity, args.title, args.message,
-                     source=args.source, meta=meta)
+                     source=args.source, category=args.category, meta=meta)
     if not ok:
         print("event was not accepted by the server", file=sys.stderr)
     return 0 if ok else 1

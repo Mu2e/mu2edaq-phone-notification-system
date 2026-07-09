@@ -92,6 +92,15 @@ struct ServerClient {
         return try JSONDecoder().decode(HealthResponse.self, from: data)
     }
 
+    /// The server's configured canonical category list. No auth needed
+    /// (mirrors /api/health), so this can be fetched before enrollment
+    /// too if a future setup screen wants to preview categories.
+    func fetchCategories() async throws -> [String] {
+        let data = try await request("api/categories")
+        return try JSONDecoder().decode(CategoriesResponse.self,
+                                        from: data).categories
+    }
+
     func updateApnsToken(_ apnsToken: String) async throws {
         _ = try await request("api/devices/token", method: "POST",
                               json: ["apns_token": apnsToken])
