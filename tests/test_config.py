@@ -41,6 +41,17 @@ def test_env_token_appends_to_list(tmp_path):
     assert cfg["auth"]["api_tokens"] == ["from-file", "from-env"]
 
 
+def test_api_tokens_file_appends_to_list(tmp_path):
+    token_file = tmp_path / "tokens"
+    token_file.write_text("# comment\nfrom-token-file\n\n")
+    path = tmp_path / "cfg.yaml"
+    path.write_text("auth:\n"
+                    "  api_tokens: [from-yaml]\n"
+                    "  api_tokens_file: \"%s\"\n" % token_file)
+    cfg = load_config(config_file=str(path), environ={})
+    assert cfg["auth"]["api_tokens"] == ["from-yaml", "from-token-file"]
+
+
 def test_config_file_from_environment(tmp_path):
     path = tmp_path / "cfg.yaml"
     path.write_text("server:\n  port: 9300\n")

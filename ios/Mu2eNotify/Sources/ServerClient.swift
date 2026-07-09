@@ -87,6 +87,11 @@ struct ServerClient {
                                         from: data).events
     }
 
+    func fetchHealth() async throws -> HealthResponse {
+        let data = try await request("api/health")
+        return try JSONDecoder().decode(HealthResponse.self, from: data)
+    }
+
     func updateApnsToken(_ apnsToken: String) async throws {
         _ = try await request("api/devices/token", method: "POST",
                               json: ["apns_token": apnsToken])

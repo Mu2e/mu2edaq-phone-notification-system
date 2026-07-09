@@ -60,4 +60,11 @@ final class Mu2eNotifyTests: XCTestCase {
         XCTAssertEqual(url.absoluteString,
                        "https://notify.example/api/events?limit=200")
     }
+
+    func testHealthDecoding() throws {
+        let json = #"{"status":"ok","apns_enabled":false}"#
+            .data(using: .utf8)!
+        let health = try JSONDecoder().decode(HealthResponse.self, from: json)
+        XCTAssertFalse(health.apnsEnabled)
+    }
 }

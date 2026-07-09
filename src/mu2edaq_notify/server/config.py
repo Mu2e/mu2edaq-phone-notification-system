@@ -32,6 +32,7 @@ DEFAULTS = {
     },
     "auth": {
         "api_tokens": [],
+        "api_tokens_file": "",
         "enrollment_secret": "",
         "enrollment_ttl_minutes": 30,
         "oidc": {
@@ -83,6 +84,7 @@ ENV_MAP = {
     "MU2EDAQ_NOTIFY_TLS_ADHOC": ("server", "tls", "adhoc"),
     "MU2EDAQ_NOTIFY_DB_URL": ("database", "url"),
     "MU2EDAQ_NOTIFY_API_TOKEN": ("auth", "api_tokens"),
+    "MU2EDAQ_NOTIFY_API_TOKENS_FILE": ("auth", "api_tokens_file"),
     "MU2EDAQ_NOTIFY_APNS_ENABLED": ("apns", "enabled"),
     "MU2EDAQ_NOTIFY_ZMQ_ENABLED": ("zmq", "enabled"),
     "MU2EDAQ_NOTIFY_ZMQ_BIND": ("zmq", "bind"),
@@ -134,6 +136,14 @@ def load_config(config_file=None, overrides=None, environ=None):
 
     for cfg_path, value in overrides or []:
         _set_path(cfg, cfg_path, value)
+
+    token_file = cfg["auth"].get("api_tokens_file")
+    if token_file and os.path.exists(token_file):
+        with open(token_file) as fh:
+            for line in fh:
+                token = line.strip()
+                if token and not token.startswith("#"):
+                    _set_path(cfg, ("auth", "api_tokens"), token)
 
     for key, generator in (
             (("server", "secret_key"), lambda: secrets.token_hex(32)),

@@ -1,4 +1,5 @@
 from mu2edaq_notify.events import normalize_event
+from mu2edaq_notify.server.destinations import ApnsSender
 from mu2edaq_notify.server import dispatch as dispatch_mod
 from mu2edaq_notify.server.dispatch import Dispatcher
 from conftest import make_event
@@ -50,6 +51,40 @@ def test_apns_log_only_mode(storage, cfg):
     deliveries = storage.deliveries_for_event(event["id"])
     assert len(deliveries) == 1
     assert deliveries[0]["status"] == "logged"
+
+
+def test_apns_alert_payload_is_plain_visible_notification(cfg):
+    class Response:
+        status_code = 200
+        headers = {"apns-id": "apns-123"}
+        text = ""
+
+    calls = []
+
+    class Client:
+        def post(self, path, json, headers):
+            calls.append((path, json, headers))
+            return Response()
+
+    cfg["apns"].update(enabled=True, key_id="KEYID", team_id="TEAMID",
+                       bundle_id="gov.fnal.mu2e.Mu2eNotify")
+    sender = ApnsSender(cfg["apns"])
+    sender._client = Client()
+    sender._key = b"unused"
+    sender._token = lambda: "jwt"
+
+    status, detail = sender.send("device-token", normalize_event(make_event()))
+
+    assert status == "sent"
+    assert detail == "apns-123"
+    path, payload, headers = calls[0]
+    assert path == "/3/device/device-token"
+    assert headers["apns-push-type"] == "alert"
+    assert headers["apns-topic"] == "gov.fnal.mu2e.Mu2eNotify"
+    assert payload["aps"]["alert"]["title"] == "[ERROR] DTC link down"
+    assert payload["aps"]["sound"] == "default"
+    assert "interruption-level" not in payload["aps"]
+    assert all(value is not None for value in payload["aps"].values())
 
 
 def test_no_matching_rule_means_no_delivery(storage, cfg):

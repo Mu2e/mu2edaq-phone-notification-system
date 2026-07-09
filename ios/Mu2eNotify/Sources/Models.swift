@@ -52,6 +52,14 @@ struct EventListResponse: Codable {
     let events: [NotifyEvent]
 }
 
+struct HealthResponse: Codable {
+    let apnsEnabled: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case apnsEnabled = "apns_enabled"
+    }
+}
+
 /// Payload of the enrollment QR code shown by the server's web UI.
 struct EnrollmentConfig: Codable {
     let type: String

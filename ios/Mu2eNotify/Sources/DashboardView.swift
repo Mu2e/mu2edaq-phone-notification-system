@@ -66,7 +66,7 @@ struct DashboardView: View {
                     EventDetailView(event: event)
                 }
             }
-            .task { await state.refreshEvents() }
+            .task { await state.refreshEventsPeriodically() }
             .overlay(alignment: .bottom) {
                 if let err = state.lastError {
                     Text(err)

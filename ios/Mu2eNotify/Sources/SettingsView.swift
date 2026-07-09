@@ -10,12 +10,18 @@ struct SettingsView: View {
                 Section("Server") {
                     LabeledContent("URL", value: state.serverUrl)
                     Button("Re-request push permission") {
-                        Task { await state.requestPushPermission() }
+                        Task { await state.syncPushRegistration() }
                     }
                 }
                 Section("This device") {
                     TextField("Device name", text: $state.deviceName)
                         .onSubmit { Task { await state.pushSettings() } }
+                    LabeledContent("Push permission", value: state.pushStatus)
+                    LabeledContent("APNS token",
+                                   value: state.hasApnsToken ? "Registered" :
+                                       "Not received")
+                    LabeledContent("Server APNS",
+                                   value: state.serverApnsStatus)
                     Picker("Minimum severity",
                            selection: Binding(
                                get: { state.minSeverity },

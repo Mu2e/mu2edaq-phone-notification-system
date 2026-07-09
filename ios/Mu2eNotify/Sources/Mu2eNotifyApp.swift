@@ -32,6 +32,7 @@ struct Mu2eNotifyApp: App {
 
 struct RootView: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         if state.isRegistered {
@@ -40,6 +41,18 @@ struct RootView: View {
                     .tabItem { Label("Dashboard", systemImage: "bell.badge") }
                 SettingsView()
                     .tabItem { Label("Settings", systemImage: "gear") }
+            }
+            .task {
+                await state.syncPushRegistration()
+                await state.refreshEvents()
+            }
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    Task {
+                        await state.syncPushRegistration()
+                        await state.refreshEvents()
+                    }
+                }
             }
         } else {
             SetupView()

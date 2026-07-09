@@ -36,6 +36,20 @@ can be opened directly with Xcode.
    `/api/devices/token` (also whenever Apple rotates it).
 4. Settings tab: device name and minimum severity, synced to the server.
 
+## Runtime behavior
+
+The dashboard refreshes when it opens, when the app returns to the
+foreground, when a push is received, and every few seconds while the
+dashboard is visible. Pull-to-refresh still forces an immediate fetch.
+
+The Settings tab shows three push-related states:
+
+- **Push permission**: the iOS notification authorization state.
+- **APNS token**: whether Apple has issued a token and the app has stored it.
+- **Server APNS**: whether the server reports APNS enabled. `Log-only`
+  means events are being recorded but the server is not sending real
+  Apple push notifications yet.
+
 ## Tests
 
 Run the `Mu2eNotifyTests` scheme in Xcode (XCTest): model decoding,

@@ -32,6 +32,8 @@ auth:
   # Add at least one before exposing the server. Example:
   #   api_tokens: ["long-random-string"]
   api_tokens: []
+  # Optional local token file, ignored by git. One token per line.
+  api_tokens_file: "auth.api_tokens"
   # Secret used to sign device enrollment tokens (auto-generated if empty).
   enrollment_secret: ""
   # Minutes an enrollment QR code / link stays valid.
@@ -48,10 +50,10 @@ auth:
 apns:
   # Apple Push Notification service. Until a key is configured the server
   # runs in log-only mode: deliveries are recorded but not sent to Apple.
-  enabled: false
+  enabled: true
   key_file: "config/apns_key.p8"   # ES256 auth key from developer.apple.com
-  key_id: ""
-  team_id: ""
+  key_id: "GNTLFXC54F"
+  team_id: "H7PRZ8RA2Z"
   bundle_id: "gov.fnal.mu2e.Mu2eNotify"
   sandbox: true
 

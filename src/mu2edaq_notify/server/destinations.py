@@ -64,17 +64,16 @@ class ApnsSender:
 
     def send(self, apns_token, event):
         """Returns (status, detail): status is 'sent'|'logged'|'failed'."""
+        aps = {
+            "alert": {"title": "[%s] %s" % (event["severity"].upper(),
+                                            event["title"]),
+                      "body": event["message"] or event["title"]},
+            "thread-id": event["source"] or "mu2edaq",
+        }
+        if event["severity"] in ("error", "critical"):
+            aps["sound"] = "default"
         payload = {
-            "aps": {
-                "alert": {"title": "[%s] %s" % (event["severity"].upper(),
-                                                event["title"]),
-                          "body": event["message"] or event["title"]},
-                "sound": "default" if event["severity"] in
-                         ("error", "critical") else None,
-                "interruption-level":
-                    "time-sensitive" if event["severity"] in
-                    ("error", "critical") else "active",
-            },
+            "aps": aps,
             "event": {k: event.get(k) for k in
                       ("id", "source", "host", "severity", "timestamp")},
         }
@@ -92,7 +91,7 @@ class ApnsSender:
                     "apns-priority": "10",
                 })
             if resp.status_code == 200:
-                return "sent", ""
+                return "sent", resp.headers.get("apns-id", "")
             return "failed", "HTTP %s: %s" % (resp.status_code,
                                               resp.text[:200])
         except Exception as exc:
