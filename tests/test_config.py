@@ -46,9 +46,11 @@ def test_api_tokens_file_appends_to_list(tmp_path):
     token_file = tmp_path / "tokens"
     token_file.write_text("# comment\nfrom-token-file\n\n")
     path = tmp_path / "cfg.yaml"
-    path.write_text("auth:\n"
-                    "  api_tokens: [from-yaml]\n"
-                    "  api_tokens_file: \"%s\"\n" % token_file)
+    # Dump via safe_dump so a Windows token-file path (backslashes) isn't
+    # misread as double-quoted-scalar escapes (e.g. \U in C:\Users).
+    import yaml
+    path.write_text(yaml.safe_dump(
+        {"auth": {"api_tokens": ["from-yaml"], "api_tokens_file": str(token_file)}}))
     cfg = load_config(config_file=str(path), environ={})
     assert cfg["auth"]["api_tokens"] == ["from-yaml", "from-token-file"]
 
