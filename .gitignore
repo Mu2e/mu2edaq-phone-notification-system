@@ -14,3 +14,5 @@ auth.api_tokens
 ios/Mu2eNotify/DerivedData/
 ios/Mu2eNotify/Mu2eNotify.xcodeproj/project.xcworkspace/xcuserdata/
 ios/Mu2eNotify/Mu2eNotify.xcodeproj/xcuserdata/
+my-values.yaml
+.vault-values-*.yaml

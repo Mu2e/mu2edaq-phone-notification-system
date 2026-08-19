@@ -1,0 +1,155 @@
+.TH DEPLOY-OKD-PROXY 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+deploy-okd-proxy.sh \- deploy the mu2edaq-pager OKD reverse proxy
+.SH SYNOPSIS
+.B ./scripts/deploy-okd-proxy.sh
+[\fB\-\-env\fR \fIprod\fR|\fItest\fR]
+[\fB\-n\fR \fINAMESPACE\fR]
+[\fB\-f\fR \fIVALUES_FILE\fR]...
+[\fB\-\-release\fR \fINAME\fR]
+[\fB\-\-tls\-secret\fR \fINAME\fR]
+[\fB\-\-timeout\fR \fISEC\fR]
+[\fB\-\-no\-cert\fR]
+[\fB\-\-skip\-vault\fR]
+[\fB\-\-vault\-approle\fR]
+[\fB\-\-vault\-role\fR \fIROLE\fR]
+.SH DESCRIPTION
+Deploys the
+.B mu2edaq-pager
+Helm chart (see
+.IR helm/ )
+to an onsite OKD cluster: a Caddy container fronted by an OKD
+.B Route
+with edge TLS termination, forwarding to
+.BR backend.url ,
+normally the existing
+.B mu2edaq-notify-server
+running on the local Mu2e host. The Caddy image is built in-cluster (an
+.B ImageStream
+/
+.B BuildConfig
+derived from
+.BR docker.io/library/caddy:2\-alpine ,
+stripping a file capability the stock image carries that OKD's
+.B restricted\-v2
+SCC refuses to exec) \(en no external registry or local Docker build is
+needed. This script does not touch
+.B mu2edaq-notify-server
+itself \(en it only stands up the public-facing proxy in front of it.
+.PP
+Because OKD rejects a
+.B Route
+that references a TLS secret before that secret exists, cert-manager
+activation is a two-pass process (see
+.BR docs/okd\-proxy\-operations.md ):
+the script applies the Helm release once with
+.B certManager.externalCertificate=false
+to let cert-manager issue the certificate, waits for the resulting TLS
+secret, then re-applies with
+.B externalCertificate=true
+to wire it into the Route. Pass
+.B \-\-no\-cert
+to skip this entirely and use the router's default wildcard certificate
+instead, e.g. before the namespace has been allowlisted by the cluster's
+OPA admission webhook for the target hostname.
+.PP
+Secrets normally come from Vault (see
+.BR docs/Vault\-Secrets.md ),
+but
+.B SECRET_REGISTRY
+in
+.B scripts/vault_client.py
+is empty today, so a bare
+.B \-\-env
+run still succeeds with no Vault login required.
+.B my\-values.yaml
+(gitignored) carries all of this deployment's real configuration \(en
+hostname, cert-manager settings, and
+.BR backend.url .
+.SH OPTIONS
+.TP
+.BI \-\-env " prod|test"
+Which Vault secrets instance to deploy with. Required unless
+.B \-\-skip\-vault
+is given.
+.TP
+.BI \-n " NAMESPACE"
+OKD namespace (default: mu2edaq-pager). Created with
+.B \-\-create\-namespace
+if it doesn't already exist.
+.TP
+.BI \-f " VALUES_FILE"
+Helm values file; repeat to layer files, later files win (default:
+my\-values.yaml). Vault-sourced values are always applied last.
+.TP
+.BI \-\-release " NAME"
+Helm release name (default: mu2edaq-pager).
+.TP
+.BI \-\-tls\-secret " NAME"
+cert-manager TLS secret name (default: mu2edaq-pager-tls). Overrides
+.B certManager.secretName
+so the wait loop and the Route's
+.B externalCertificate
+always agree.
+.TP
+.BI \-\-timeout " SEC"
+Timeout in seconds (default: 120), applied separately to each wait:
+the TLS-secret wait, the image build, and the rollout.
+.TP
+.B \-\-no\-cert
+Skip cert-manager entirely; the Route uses the router's default
+wildcard certificate.
+.TP
+.B \-\-skip\-vault
+Deploy using only the
+.B \-f
+values files; don't call Vault at all
+.RB ( \-\-env
+is not required in this case).
+.TP
+.B \-\-vault\-approle
+Authenticate to Vault as the application via
+.BR get\-vault\-apptoken.sh (1)
+instead of your personal
+.IR ~/.vault\-token .
+.TP
+.BI \-\-vault\-role " ROLE"
+AppRole role name to use with
+.BR \-\-vault\-approle .
+.TP
+.BR \-h ", " \-\-help
+Show usage and exit.
+.SH EXAMPLES
+First deploy, issuing a fresh cert-manager certificate:
+.PP
+.RS
+.B ./scripts/deploy-okd-proxy.sh --env prod
+.RE
+.PP
+Redeploy without touching cert-manager (route/cert already active):
+.PP
+.RS
+.B ./scripts/deploy-okd-proxy.sh --env prod --no-cert
+.RE
+.PP
+Deploy without any Vault call at all:
+.PP
+.RS
+.B ./scripts/deploy-okd-proxy.sh --skip-vault
+.RE
+.SH FILES
+.TP
+.B helm/
+The mu2edaq-pager Helm chart.
+.TP
+.B my-values.yaml
+Gitignored real deployment values (hostname, backend.url, cert-manager settings).
+.TP
+.B config/vault.yaml
+Vault connection defaults.
+.SH SEE ALSO
+.BR vault\-client (1),
+.BR get\-vault\-apptoken (1),
+.B docs/okd-proxy-setup.md ,
+.B docs/okd-proxy-operations.md ,
+.B docs/Vault-Secrets.md

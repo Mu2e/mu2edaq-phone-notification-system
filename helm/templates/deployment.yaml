@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mu2edaq-pager.labels" . | nindent 4 }}
+  annotations:
+    # Patches spec.template.spec.containers[0].image automatically whenever
+    # {{ .Release.Name }}-caddy:latest gets a new build (see templates/build.yaml)
+    # -- no polling needed in the deploy script.
+    image.openshift.io/triggers: |
+      [{"from":{"kind":"ImageStreamTag","name":"{{ .Release.Name }}-caddy:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"caddy\")].image"}]
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mu2edaq-pager.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mu2edaq-pager.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Forces a rollout when only the Caddyfile content changes -- the
+        # ConfigMap volume mount otherwise updates in place on its own
+        # schedule, and Caddy only rereads it on process restart.
+        checksum/caddyfile: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: caddy
+          # Placeholder; OpenShift patches this in place once
+          # {{ .Release.Name }}-caddy:latest exists, via the
+          # image.openshift.io/triggers annotation below (see templates/build.yaml).
+          image: "image-registry.openshift-image-registry.svc:5000/{{ .Release.Namespace }}/{{ .Release.Name }}-caddy:latest"
+          imagePullPolicy: Always
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /etc/caddy/Caddyfile
+              name: caddyfile
+              subPath: Caddyfile
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      restartPolicy: Always
+      volumes:
+        - name: caddyfile
+          configMap:
+            name: {{ .Release.Name }}-caddyfile

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-caddyfile
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mu2edaq-pager.labels" . | nindent 4 }}
+data:
+  Caddyfile: |
+    :8080 {
+        encode gzip
+        reverse_proxy {{ required "backend.url is required -- set it in my-values.yaml" .Values.backend.url }} {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }

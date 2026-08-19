@@ -165,7 +165,8 @@ ctest --test-dir build          # C++: CppUnit (skipped if CppUnit not installed
 ## Documentation
 
 Man pages in `man/`: `mu2edaq-notify-server(1)`, `mu2edaq-notify(1)`,
-`mu2edaq_notify(3)` (Python API), `mu2edaq_notify_cpp(3)` (C++ API).
+`mu2edaq_notify(3)` (Python API), `mu2edaq_notify_cpp(3)` (C++ API),
+`deploy-okd-proxy(1)`, `vault-client(1)`, `get-vault-apptoken(1)`.
 The web interface has About, API, and Sitemap pages. The original
 specification is `PhonePushNotificationSpecifications.md`.
 
@@ -174,3 +175,6 @@ Reverse-proxy and phone access docs:
 - `docs/reverse-proxy-setup.md` - AWS EC2, Route 53, Caddy, tunnel setup.
 - `docs/reverse-proxy-operations.md` - start/stop/status runbook and troubleshooting.
 - `docs/application-chain.md` - end-to-end publishing, registration, proxy, and APNS chain.
+- `docs/okd-proxy-setup.md` - onsite OKD reverse proxy (Route + cert-manager), no tunnel needed.
+- `docs/okd-proxy-operations.md` - OKD runbook, cert-manager activation, and cutover checklist.
+- `docs/Vault-Secrets.md` - the (currently unused) Vault secrets pipeline for the OKD deploy.

@@ -1,0 +1,5 @@
+# Dependencies for OKD deployment tooling (scripts/deploy-okd-proxy.sh,
+# scripts/vault_client.py). Not required to run mu2edaq-notify-server itself
+# -- see requirements.txt for that.
+hvac>=1.2
+PyYAML>=5.4

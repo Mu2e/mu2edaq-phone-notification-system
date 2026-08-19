@@ -1,0 +1,40 @@
+# Vault connection defaults for scripts/vault_client.py.
+# No secrets live here -- only how to find and address the KV mount.
+# Override any of these with --addr/--env/--kv-mount/--base-path, or the
+# VAULT_ADDR/VAULT_ENV/VAULT_KV_MOUNT/VAULT_BASE_PATH environment variables.
+#
+# This proxy deployment does not need any secrets today (see
+# docs/Vault-Secrets.md) -- this file and scripts/vault_client.py are
+# scaffolding, following the same pattern already proven on mu2e-talks, so
+# the pipeline is ready the moment a secret (e.g. a shared bearer token at
+# the proxy layer) is actually needed.
+#
+# The full logical path follows mu2e-talks' convention:
+#   okd/shared/<env>/mu2edaq-pager/<section>
+# i.e. the mount point is "okd" and base_path (computed from env below) is
+# everything after it: shared/<env>/mu2edaq-pager. Uncomment base_path only
+# if that split turns out to be wrong for this app -- it fully overrides
+# the computed path.
+vault:
+  addr: https://ssivault.fnal.gov:8200
+  env: test
+  kv_mount: okd
+  # base_path: shared/test/mu2edaq-pager
+
+  # ── AppRole application token (scripts/get-vault-apptoken.sh) ───────────────
+  # Authenticate as the *application* instead of as a person. Off by default:
+  # everything keeps using your personal ~/.vault-token unless you opt in with
+  # --approle / --vault-approle / MU2EDAQ_PAGER_VAULT_APPROLE=1, or by setting
+  # the key below to true.
+  #
+  # NOTE: this role does not exist yet. Before --approle will work, a Vault
+  # admin must create it with a policy granting read on
+  #   okd/data/shared/prod/mu2edaq-pager/*
+  #   okd/data/shared/test/mu2edaq-pager/*
+  # (KV v2 puts secret reads under the /data/ prefix).
+  # approle: false
+  role: mu2edaq-pager-app
+  mount: auth/td-approles
+
+  # Personal login method used to bootstrap the AppRole credentials.
+  method: ldap

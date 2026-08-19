@@ -1,0 +1,400 @@
+.TH GET-VAULT-APPTOKEN 1 "2026-08-19" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+get-vault-apptoken \- obtain a HashiCorp Vault AppRole token for the mu2edaq-pager application
+.SH SYNOPSIS
+.B ./scripts/get-vault-apptoken.sh
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B get-vault-apptoken.sh
+produces a short-lived Vault token for the mu2edaq-pager application and hands
+it to the deployment. It performs three stages:
+.PP
+.RS
+.IP 1. 3
+Ensures a usable personal Vault session exists. The LDAP login is long-lived,
+so it is performed
+.B only
+when no valid session is found, when the remaining TTL is below
+.BR \-\-min\-ttl ,
+or when the current session lacks permission to generate a secret-id. That last
+case matters in practice: if
+.I ~/.vault-token
+holds an application token \(em for example after a
+.B "vault login -method=token"
+with a previously issued app token \(em it can read its own role-id but cannot
+mint a new secret-id, which Vault reports as a bare 403. The script detects this
+with
+.B "vault token capabilities"
+and re-authenticates you instead. When a login is needed the Vault CLI prompts
+for credentials interactively.
+.IP 2. 3
+Uses that personal session to read the AppRole
+.B role_id
+and to generate a fresh
+.B secret_id
+for the configured role.
+.IP 3. 3
+Exchanges the pair at
+.I <mount>/login
+for an application token, verifies it with a self-lookup, and writes it out in
+the requested format.
+.RE
+.PP
+The role_id and secret_id are passed to Vault through a mode 0600 temporary
+file rather than on the command line, so they are never visible in
+.BR ps (1)
+output. Credentials are masked in all progress messages. Every diagnostic goes
+to standard error, so the token itself is the only thing on standard output and
+the script composes cleanly in a pipeline or command substitution.
+.PP
+The script does
+.B not
+replace your personal session with the application token unless
+.B \-\-set\-local\-token
+is given.
+.SH OPTIONS
+.TP
+.BI \-a ", " \-\-addr " URL"
+Vault server address.
+.br
+Default:
+.BR $VAULT_ADDR ", or " https://ssivault.fnal.gov:8200
+.TP
+.BI \-r ", " \-\-role " NAME"
+AppRole role name.
+.br
+Default:
+.B mu2edaq-pager-app
+.TP
+.BI \-m ", " \-\-mount " PATH"
+AppRole auth mount path. An
+.B auth/
+prefix is added if omitted.
+.br
+Default:
+.B auth/td-approles
+.TP
+.BI \-u ", " \-\-username " USER"
+LDAP username used for the personal login.
+.br
+Default:
+.BR $MU2EDAQ_PAGER_VAULT_LDAP_USER ", or " $USER
+.TP
+.BI \-\-method " METHOD"
+Personal login method:
+.BR ldap ", " oidc " or " userpass .
+.br
+Default:
+.B ldap
+.TP
+.BI \-F ", " \-\-format " FORMAT"
+Output format:
+.B token
+(bare token),
+.B env
+(shell
+.B export
+lines),
+.B json
+(token plus accessor, TTL and policies), or
+.B values
+(a Helm values fragment setting
+.BR vault.token ).
+.br
+Default:
+.B token
+.TP
+.BI \-o ", " \-\-output " FILE"
+Write the result to
+.I FILE
+with mode 0600 instead of standard output.
+.TP
+.BI \-c ", " \-\-config " FILE"
+Read defaults from a flat
+.I key: value
+YAML file. Without this flag,
+.I ./config/vault.yaml
+and
+.I ~/.config/mu2edaq-pager/vault.yaml
+are tried in that order. Recognised keys:
+.BR addr ", " role ", " mount ", " username ", " method ", " format ", " output ", " min_ttl ", " check_path .
+.TP
+.BI \-\-min\-ttl " SECS"
+Treat a personal session with less than
+.I SECS
+remaining as expired and re-authenticate.
+.br
+Default:
+.B 300
+.TP
+.B \-\-renew
+Attempt to renew an expiring personal session before falling back to a fresh
+login.
+.TP
+.B \-\-force\-login
+Always perform the personal login, even when a valid session exists.
+.TP
+.B \-\-no\-login
+Never prompt. Fail with exit status 3 if no valid session exists. Use this in
+CI and other non-interactive callers.
+.TP
+.BI \-\-wrap\-ttl " DURATION"
+Return a response-wrapping token valid for
+.I DURATION
+(e.g.
+.BR 5m )
+instead of the application token. The consumer recovers the real token with
+.BR "vault unwrap <token>" .
+A wrapped token can only be unwrapped once, so verification is skipped.
+.TP
+.BI \-\-check\-path " PATH"
+After login, confirm the application token can actually read
+.IR PATH .
+Fails with exit status 5 if it cannot.
+.TP
+.B \-\-no\-verify
+Skip the self-lookup that validates the new application token.
+.TP
+.B \-\-set\-local\-token
+Also point this shell's Vault session
+.RI ( ~/.vault-token )
+at the new application token. This
+.B replaces
+your personal login and is not the default.
+.TP
+.BR \-q ", " \-\-quiet
+Suppress progress output. Errors are still reported.
+.TP
+.BR \-v ", " \-\-verbose
+Print each Vault call as it is made.
+.TP
+.B \-\-dry\-run
+Print the Vault commands that would run without contacting the server.
+.TP
+.B \-\-version
+Print the script version and exit.
+.TP
+.BR \-h ", " \-\-help
+Show a short help message and exit.
+.SH CONFIGURATION PRECEDENCE
+Settings are resolved in this order, highest first:
+.PP
+.RS
+.IP 1. 3
+Command-line flags
+.IP 2. 3
+Environment variables
+.IP 3. 3
+The config file
+.IP 4. 3
+Built-in defaults
+.RE
+.SH ENVIRONMENT
+.TP
+.B VAULT_ADDR
+Vault server address.
+.TP
+.B VAULT_TOKEN
+An existing token to use as the personal session. It is unset internally after
+a fresh login so it cannot shadow the new session.
+.TP
+.B MU2EDAQ_PAGER_VAULT_ROLE
+AppRole role name.
+.TP
+.B MU2EDAQ_PAGER_VAULT_MOUNT
+AppRole auth mount path.
+.TP
+.B MU2EDAQ_PAGER_VAULT_LDAP_USER
+LDAP username.
+.TP
+.B MU2EDAQ_PAGER_VAULT_FORMAT
+Default output format.
+.TP
+.B MU2EDAQ_PAGER_VAULT_TOKEN_FILE
+Default output file.
+.TP
+.B MU2EDAQ_PAGER_VAULT_CONFIG
+Default config file path.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Usage error \(em unknown option, bad format, or missing config file.
+.TP
+.B 2
+The
+.B vault
+CLI is not installed.
+.TP
+.B 3
+Vault is unreachable or sealed, or the personal login failed or could not be
+prompted for.
+.TP
+.B 4
+The AppRole role-id, secret-id, or login exchange failed.
+.TP
+.B 5
+The application token failed verification or cannot read
+.BR \-\-check\-path .
+.SH EXAMPLES
+Capture a token in a shell variable:
+.PP
+.RS
+.EX
+APP_TOKEN=$(./scripts/get-vault-apptoken.sh)
+.EE
+.RE
+.PP
+Load the token into the current shell:
+.PP
+.RS
+.EX
+eval "$(./scripts/get-vault-apptoken.sh --format env)"
+.EE
+.RE
+.PP
+Deploy to OKD authenticating as the application:
+.PP
+.RS
+.EX
+\&./scripts/deploy\-okd\-proxy.sh --env test --vault\-approle
+.EE
+.RE
+.PP
+Write a Helm values fragment. Note that the
+.B mu2edaq\-pager
+chart currently has
+.B no
+.I vault
+key: this deployment resolves secrets on the host and the pod never
+contacts Vault, so this fragment is inert unless pod-side plumbing is
+added later.
+.PP
+.RS
+.EX
+\&./scripts/get-vault-apptoken.sh --format values -o /tmp/vault-values.yaml
+.EE
+.RE
+.PP
+Non-interactive use in CI, failing rather than prompting:
+.PP
+.RS
+.EX
+\&./scripts/get-vault-apptoken.sh --no-login --quiet -o /run/secrets/vault-token
+.EE
+.RE
+.PP
+Verify the token can read the application's secret path (once one exists \(en
+see
+.BR docs/Vault\-Secrets.md ):
+.PP
+.RS
+.EX
+\&./scripts/get-vault-apptoken.sh --check-path okd/shared/test/mu2edaq-pager/proxy
+.EE
+.RE
+.PP
+Hand a wrapped token to another process:
+.PP
+.RS
+.EX
+WRAPPED=$(./scripts/get-vault-apptoken.sh --wrap-ttl 5m)
+vault unwrap "$WRAPPED"
+.EE
+.RE
+.SH FILES
+.TP
+.I ~/.vault-token
+The Vault CLI token helper, where the personal session is stored.
+.TP
+.I ./config/vault.yaml
+Optional project-local defaults.
+.TP
+.I ~/.config/mu2edaq-pager/vault.yaml
+Optional per-user defaults.
+.SH SECURITY
+The generated token is a live credential. Files written with
+.B \-\-output
+are created with mode 0600; delete them once the deployment has consumed them.
+.B "deploy\-okd\-proxy.sh \-\-vault\-approle"
+keeps the token in a process environment variable rather than on disk, writes
+the Vault-sourced secrets to a mode 0600 temporary file that is shredded on
+exit (including on interrupt), and revokes the application token when the
+deploy finishes. Never commit a values file containing
+.BR vault.token .
+.PP
+Prefer
+.B \-\-wrap\-ttl
+when handing a token to another process: the wrapped value is single-use, so an
+intercepted copy is detectable \(em a second unwrap fails.
+.SH REQUIRED VAULT POLICY
+The AppRole named by
+.B \-\-role
+must be attached to a policy granting read access to this application's
+secrets. Because the KV engine is version 2, secret reads live under a
+.I /data/
+path segment:
+.PP
+.nf
+.RS 4
+path "okd/data/shared/prod/mu2edaq\-pager/*" { capabilities = ["read"] }
+path "okd/data/shared/test/mu2edaq\-pager/*" { capabilities = ["read"] }
+.RE
+.fi
+.PP
+Authenticating successfully is not sufficient: a role without this policy
+will mint a perfectly valid token that is then denied on every secret.
+.B No role named
+.B mu2edaq\-pager\-app
+exists yet
+.RB ( \-\-approle / \-\-vault\-approle
+will fail with an actionable error until a Vault admin creates one) \(en
+there is no urgency to request it until a secret is actually registered in
+.BR scripts/vault_client.py 's
+.BR SECRET_REGISTRY .
+.PP
+Once a role and a secret exist, verify a freshly minted token before
+relying on it:
+.PP
+.nf
+.RS 4
+\&./scripts/get\-vault\-apptoken.sh \\
+    \-\-check\-path okd/shared/test/mu2edaq\-pager/proxy
+.RE
+.fi
+.PP
+Neither an ordinary user token nor the application token can read the policy
+document itself
+.RB ( sys/policies/acl
+returns 403), so a denial has to be diagnosed with
+.B vault token capabilities
+rather than by inspecting the policy.
+.SH INTEGRATION
+mu2edaq-pager's deploy script resolves secrets on the host (via
+.BR vault_client.py (1))
+and hands them to Helm as a values file; the proxy pod never contacts
+Vault itself. This script supplies the credential for that host-side
+read, replacing the personal
+.IR ~/.vault\-token .
+It is opt-in everywhere:
+.TP
+.B ./scripts/deploy\-okd\-proxy.sh \-\-env test \-\-vault\-approle
+Mints one token for the deploy, passes it to
+.BR vault_client.py (1)
+via
+.BR VAULT_TOKEN ,
+and revokes it on exit.
+.TP
+.B python3 scripts/vault_client.py env \-\-approle
+Direct use. An explicit
+.B VAULT_TOKEN
+always takes precedence over AppRole minting, so a token supplied by a
+calling script is reused rather than duplicated.
+.SH SEE ALSO
+.BR vault\-client (1),
+.BR deploy\-okd\-proxy (1),
+.BR vault (1)
+.PP
+.I docs/Vault\-Secrets.md

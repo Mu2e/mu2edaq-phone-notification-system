@@ -1,0 +1,10 @@
+apiVersion: v2
+name: mu2edaq-pager
+description: Public HTTPS reverse proxy for mu2edaq-notify-server, fronted by an OKD Route and cert-manager
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - mu2edaq-notify
+  - mu2edaq-pager
+  - caddy

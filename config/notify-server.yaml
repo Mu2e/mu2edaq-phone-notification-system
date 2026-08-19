@@ -8,7 +8,7 @@ server:
   port: 8095
   # External base URL used in QR codes and auto-configuration payloads.
   # Leave empty to infer from the request.
-  base_url: "https://notify.andrewnorman.org"
+  base_url: "https://mu2edaq-pager.fnal.gov"
   tls:
     # Enable HTTPS directly in the built-in Flask server. For iPhones,
     # use a certificate trusted by the phone. Ad-hoc/self-signed certs
@@ -74,17 +74,17 @@ discovery:
   # The ANNOUNCE advertises this host's own local address (host/port/
   # scheme left empty below so they default to this machine's FQDN,
   # server.port, and http/https matching server.tls.enabled) -- so
-  # on-network DAQ publishers connect directly without going out to AWS
-  # and back. fallback_url rides along as ANNOUNCE metadata and is only
-  # used by publishers when the local address is unreachable (e.g. the
-  # publisher is off the DAQ network).
+  # on-network DAQ publishers connect directly without going out to the
+  # public proxy and back. fallback_url rides along as ANNOUNCE metadata
+  # and is only used by publishers when the local address is unreachable
+  # (e.g. the publisher is off the DAQ network).
   enabled: true
   name: "Mu2e DAQ Notification Server"
   app: "notify"
   host: ""
   port: 0
   scheme: ""
-  fallback_url: "https://notify.andrewnorman.org"
+  fallback_url: "https://mu2edaq-pager.fnal.gov"
 
 dispatch:
   # Suppress identical (rule, source, title) deliveries within this window.

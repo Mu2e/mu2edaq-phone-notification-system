@@ -1,0 +1,76 @@
+# Default values for mu2edaq-pager.
+# Override with:  helm install ... -f my-values.yaml  or  --set key=value
+#
+# This chart deploys a reverse proxy only -- it does not run
+# mu2edaq-notify-server itself. The Flask app, SQLite database, and APNs
+# delivery keep running on the local Mu2e host exactly as they do today;
+# this chart only replaces the AWS EC2+Caddy+Route53 role of terminating
+# public TLS and forwarding to that host.
+
+image:
+  # Upstream base image the in-cluster BuildConfig derives FROM (see
+  # templates/build.yaml). The stock image is not used directly: it sets
+  # a cap_net_bind_service file capability on /usr/bin/caddy so it can
+  # bind :80/:443 as non-root, and OKD's restricted-v2 SCC
+  # (allowPrivilegeEscalation: false, i.e. no_new_privs) refuses to exec
+  # ANY binary carrying a file capability, regardless of whether that
+  # capability is actually needed -- and it isn't here, since Caddy only
+  # binds :8080. The BuildConfig strips it with `setcap -r`.
+  repository: docker.io/library/caddy
+  tag: "2-alpine"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# ── Backend ───────────────────────────────────────────────────────────────────
+# Where the Caddy pod forwards requests. Must be reachable from the OKD
+# cluster's network. REQUIRED -- set in my-values.yaml, e.g.:
+#   backend:
+#     url: "https://kaon.andrewnorman.org:8095"
+backend:
+  url: ""
+
+# ── OKD Route ─────────────────────────────────────────────────────────────────
+route:
+  # Set to the public hostname to create an OKD Route with TLS edge termination.
+  # Leave empty to skip Route creation.
+  hostname: ""
+  timeout: 300s
+  # Label matched by the target IngressController's routeSelector, so the
+  # route is admitted by the public-facing router shard instead of the
+  # cluster-internal default. Leave empty to skip the label entirely.
+  ingressController: public-proxy
+
+# ── cert-manager ───────────────────────────────────────────────────────────────
+certManager:
+  enabled: false
+  clusterIssuer: incommon-acme
+  secretName: mu2edaq-pager-tls
+  # Set to true only after the Certificate has been issued and the secret exists.
+  # This wires the secret into the Route and grants the OKD router RBAC access.
+  externalCertificate: false
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 64Mi
+
+# Resources for the BuildConfig's generated build pod (templates/build.yaml).
+# This cluster's OPA admission webhook rejects any pod -- including the
+# auto-generated docker-build container and manage-dockerfile init
+# container -- that doesn't declare requests/limits, so these are required,
+# not just good practice. Docker-strategy builds need real headroom.
+buildResources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi

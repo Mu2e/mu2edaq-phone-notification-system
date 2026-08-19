@@ -1,0 +1,198 @@
+.TH VAULT-CLIENT 1 "2026-08-19" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+vault_client.py \- fetch mu2edaq-pager secrets from HashiCorp Vault
+.SH SYNOPSIS
+.B python3 scripts/vault_client.py
+.RI [ env | helm-values | json ]
+[\fB\-\-env\fR \fIprod\fR|\fItest\fR]
+[\fB\-\-addr\fR \fIURL\fR]
+[\fB\-\-base\-path\fR \fIPATH\fR]
+[\fB\-\-kv\-mount\fR \fIMOUNT\fR]
+[\fB\-\-token\fR \fITOKEN\fR]
+[\fB\-\-config\fR \fIFILE\fR]
+.SH DESCRIPTION
+.B vault_client.py
+reads mu2edaq-pager secrets from a HashiCorp Vault KV v2 engine and renders them
+in one of three formats for a consumer:
+.BR env " (KEY=\(dqvalue\(dq lines),"
+.BR helm-values " (a YAML fragment matching " helm/values.yaml ","
+used by
+.BR deploy\-okd\-proxy.sh (1)),
+or
+.BR json .
+.PP
+.B SECRET_REGISTRY
+at the top of the script is empty today \(en this deployment is a
+reverse proxy only and needs no secret yet, so every format above
+succeeds immediately with empty output and never contacts Vault. See
+.B docs/Vault-Secrets.md
+for how to add the first one.
+.PP
+There are two separate secret instances, production and test, each with
+its own base path
+.RI ( okd/shared/prod/mu2edaq-pager " and " okd/shared/test/mu2edaq-pager ).
+.B \-\-env
+selects between them; if omitted, it defaults to
+.I test
+so nothing reads production secrets without an explicit choice.
+.PP
+It never implements Vault's login flow itself. Human developers
+authenticate with the
+.B vault
+CLI
+.RB ( "vault login \-method=ldap \-address=https://ssivault.fnal.gov:8200" ),
+which caches a token at
+.IR ~/.vault-token ;
+this script only reads that cached token (or
+.B \-\-token
+/
+.BR VAULT_TOKEN ).
+.PP
+Which secret lives at which Vault path, under which env var and Helm value
+name, is defined once in the
+.B SECRET_REGISTRY
+list at the top of the script \(en see
+.B docs/Vault-Secrets.md
+for the full table.
+.SH OPTIONS
+.TP
+.I env|helm-values|json
+Output format. Required, positional.
+.TP
+.BI \-\-env " prod|test"
+Which secret instance to read.
+.br
+Precedence: this flag >
+.B VAULT_ENV
+> \fBvault.env\fR in the config file > \fBtest\fR.
+.TP
+.BI \-\-addr " URL"
+Vault address.
+.br
+Precedence: this flag >
+.B VAULT_ADDR
+> \fBvault.addr\fR in the config file > \fBhttps://ssivault.fnal.gov:8200\fR.
+.TP
+.BI \-\-base\-path " PATH"
+KV base path under which each secret section (none registered yet \(en see
+.BR SECRET_REGISTRY " above) would be stored. Normally computed from"
+.B \-\-env
+as
+.IR okd/shared/<env>/mu2edaq-pager ;
+setting this explicitly bypasses that computation entirely.
+.br
+Precedence: this flag >
+.B VAULT_BASE_PATH
+> \fBvault.base_path\fR in the config file > computed from
+.BR \-\-env .
+.TP
+.BI \-\-kv\-mount " MOUNT"
+KV v2 engine mount point.
+.br
+Precedence: this flag >
+.B VAULT_KV_MOUNT
+> \fBvault.kv_mount\fR in the config file > \fBokd\fR.
+.TP
+.BI \-\-token " TOKEN"
+Vault token, overriding
+.B VAULT_TOKEN
+and
+.IR ~/.vault-token .
+Not recommended on a shared machine \(en prefer
+.B vault login
+so the token stays in your own home directory.
+.TP
+.B \-\-approle
+Authenticate as the application rather than as a person: mint a short-lived
+AppRole token by invoking
+.BR get\-vault\-apptoken (1)
+instead of reading
+.IR ~/.vault\-token .
+Intended for CI and unattended deploys. Off by default.
+.br
+Precedence: this flag >
+.B MU2EDAQ_PAGER_VAULT_APPROLE
+> \fBvault.approle\fR in the config file > off.
+.br
+An explicit
+.B \-\-token
+or
+.B VAULT_TOKEN
+disables AppRole minting, so a token already obtained by a calling script is
+reused rather than a second one being created.
+.TP
+.BI \-\-approle\-role " NAME"
+AppRole role name to use with
+.BR \-\-approle .
+.br
+Precedence: this flag >
+.B MU2EDAQ_PAGER_VAULT_ROLE
+> \fBvault.role\fR in the config file.
+.br
+This role does not exist yet; when it does, it must carry a policy
+granting read on
+.IR okd/data/shared/{prod,test}/mu2edaq\-pager/* ;
+see
+.BR get\-vault\-apptoken (1).
+.TP
+.BI \-\-config " FILE"
+Path to the YAML config file supplying connection defaults.
+.br
+Default:
+.BR config/vault.yaml .
+.TP
+.BR \-h ", " \-\-help
+Show usage and exit.
+.SH EXIT STATUS
+.TP
+.B 0
+Secrets were fetched and rendered successfully.
+.TP
+.B 1
+No Vault token was found, or the read failed (permissions, wrong path, or a
+connection problem). A one-line, actionable message is printed to stderr \(en
+never a raw stack trace.
+.SH EXAMPLES
+Print resolved test-instance secrets as shell-safe KEY=\(dqvalue\(dq lines:
+.PP
+.RS
+.B python3 scripts/vault_client.py env \-\-env test
+.RE
+.PP
+Render a production Helm values fragment and feed it straight into
+.BR helm\ upgrade :
+.PP
+.RS
+.EX
+python3 scripts/vault_client.py helm-values --env prod > /tmp/vault-values.yaml
+helm upgrade --install mu2edaq-pager ./helm \e
+    -f my-values.yaml -f /tmp/vault-values.yaml
+.EE
+.RE
+.PP
+Override the computed path entirely (e.g. a one-off dev path within the
+same
+.I okd
+mount \(en note this is relative to the mount point, so it does NOT repeat
+.IR okd/ ):
+.PP
+.RS
+.B python3 scripts/vault_client.py env \-\-base\-path shared/dev/mu2edaq-pager
+.RE
+.SH FILES
+.TP
+.B config/vault.yaml
+Non-secret connection defaults (address, base path, KV mount). Committed to
+git.
+.TP
+.B ~/.vault-token
+Cached token written by
+.BR "vault login" .
+Read, never written, by this script.
+.SH SEE ALSO
+.BR deploy\-okd\-proxy (1),
+.BR get\-vault\-apptoken (1),
+.B docs/Vault-Secrets.md ,
+.B docs/okd-proxy-setup.md
+.SH AUTHORS
+mu2edaq-pager project contributors.

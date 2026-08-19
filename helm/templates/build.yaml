@@ -1,0 +1,41 @@
+# Builds a derived Caddy image in-cluster (no external registry needed):
+# takes the stock image (Values.image.*) and strips the cap_net_bind_service
+# file capability that OKD's restricted-v2 SCC refuses to exec -- see the
+# comment on `image:` in values.yaml. The Deployment's container image is
+# patched automatically by OpenShift whenever this ImageStreamTag gets a new
+# build, via the image.openshift.io/triggers annotation on deployment.yaml.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: {{ .Release.Name }}-caddy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mu2edaq-pager.labels" . | nindent 4 }}
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: {{ .Release.Name }}-caddy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mu2edaq-pager.labels" . | nindent 4 }}
+spec:
+  source:
+    type: Dockerfile
+    dockerfile: |
+      FROM {{ .Values.image.repository }}:{{ .Values.image.tag }}
+      USER root
+      RUN apk add --no-cache libcap \
+          && setcap -r /usr/bin/caddy \
+          && apk del libcap
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  resources:
+    {{- toYaml .Values.buildResources | nindent 4 }}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: "{{ .Release.Name }}-caddy:latest"
+  triggers:
+    - type: ConfigChange
