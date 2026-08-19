@@ -312,10 +312,22 @@ info "[7/7] Current OKD status"
 oc get pods,svc,route,certificate -n "${NAMESPACE}"
 
 ROUTE_HOST="$(oc get route "${RELEASE}" -n "${NAMESPACE}" -o jsonpath='{.spec.host}' 2>/dev/null || true)"
-if [[ -n "${ROUTE_HOST}" ]]; then
+if [[ -n "${ROUTE_HOST}" ]] && command -v curl >/dev/null 2>&1; then
     URL="https://${ROUTE_HOST}/api/health"
     info "Checking ${URL}"
-    if command -v curl >/dev/null 2>&1 && curl --fail --silent --show-error --head --max-time 20 "${URL}" >/dev/null; then
+    # The OKD router takes a few seconds to pick up a freshly-rolled-out
+    # pod as a Route endpoint after `oc rollout status` already reports
+    # ready, so a single immediate check routinely sees a transient 503.
+    # Retry briefly before treating it as a real failure.
+    HEALTH_OK=false
+    for _attempt in 1 2 3 4 5; do
+        if curl --fail --silent --show-error --head --max-time 20 "${URL}" >/dev/null; then
+            HEALTH_OK=true
+            break
+        fi
+        sleep 3
+    done
+    if [[ "${HEALTH_OK}" == true ]]; then
         success "Public health check is responding"
     else
         warn "Deployment is ready, but the health check failed: ${URL}"
