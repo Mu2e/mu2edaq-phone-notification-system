@@ -16,3 +16,4 @@ ios/Mu2eNotify/Mu2eNotify.xcodeproj/project.xcworkspace/xcuserdata/
 ios/Mu2eNotify/Mu2eNotify.xcodeproj/xcuserdata/
 my-values.yaml
 .vault-values-*.yaml
+*.keytab

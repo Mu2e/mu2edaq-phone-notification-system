@@ -9,9 +9,20 @@ data:
   Caddyfile: |
     :8080 {
         encode gzip
-        reverse_proxy {{ required "backend.url is required -- set it in my-values.yaml" .Values.backend.url }} {
+        {{- if .Values.backend.tunnel.enabled }}
+        reverse_proxy {{ printf "%s://127.0.0.1:%v" .Values.backend.tunnel.scheme .Values.backend.tunnel.localPort }} {
+        {{- if eq .Values.backend.tunnel.scheme "https" }}
             transport http {
                 tls_insecure_skip_verify
             }
+        {{- end }}
+        {{- else }}
+        reverse_proxy {{ required "backend.url is required -- set it in my-values.yaml" .Values.backend.url }} {
+        {{- if hasPrefix "https://" .Values.backend.url }}
+            transport http {
+                tls_insecure_skip_verify
+            }
+        {{- end }}
+        {{- end }}
         }
     }

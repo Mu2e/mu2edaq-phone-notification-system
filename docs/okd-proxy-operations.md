@@ -143,6 +143,78 @@ upgrade` hits them:
   `scripts/deploy-okd-proxy.sh` always passes `--force-conflicts`; add
   it to any manual `helm upgrade` too.
 
+## SSH tunnel mode: operations and troubleshooting
+
+See `docs/okd-proxy-setup.md`'s SSH tunnel section for what this is
+and how to enable it (`backend.tunnel.enabled: true` in
+`my-values.yaml`), and `docs/Vault-Secrets.md`'s SSH tunnel keytab
+section for how the keytab gets populated in Vault.
+
+**Check tunnel health directly:**
+```bash
+oc logs -n mu2edaq-pager deployment/mu2edaq-pager -c ssh-tunnel --tail=50
+```
+A healthy tunnel logs one `connecting: ...` line and then goes quiet
+(the `ssh -N` process holds the connection open with no further
+output). Repeated `connecting:` lines in a short window mean the
+tunnel keeps dropping and reconnecting -- check the line right after
+each one for the SSH client's own error.
+
+**Confirm the tunnel is actually listening inside the pod:**
+```bash
+oc exec -n mu2edaq-pager deployment/mu2edaq-pager -c caddy -- \
+  wget --no-check-certificate -qO- http://127.0.0.1:18095/api/health
+```
+(`18095` is the default `backend.tunnel.localPort`; use `https://` if
+your `backend.tunnel.scheme` is `https` -- adjust the port too if you
+changed it.) If this hangs or errors but the `ssh-tunnel` container's
+logs look fine, the problem is downstream of the tunnel -- i.e.
+`remoteTarget` isn't actually reachable *from* `sshHost`, not an OKD
+connectivity problem at all.
+
+| Symptom | Likely cause | Check |
+|---|---|---|
+| `ssh-tunnel` container `CrashLoopBackOff`, logs show a `kinit` error | Keytab/principal wrong, expired, or not actually populated in Vault for this `--env` | `oc exec -c ssh-tunnel ... -- klist -kt /etc/krb5-keytab/keytab` to confirm the principal in the mounted keytab matches `backend.tunnel.principal` |
+| `ssh-tunnel` logs: `Permission denied (gssapi-with-mic)` | Kerberos auth reached the SSH server but was rejected -- principal has no account/access on `sshHost`, or the server doesn't have `GSSAPIAuthentication yes` enabled | Confirm with whoever manages `sshHost` that the principal is authorized and GSSAPI is enabled server-side |
+| `ssh-tunnel` logs: connection timeout to `sshHost:22` | Port 22 isn't actually reachable from OKD for this host either (don't assume every host has the AWS-DAQ port-vs-SSH asymmetry `mu2egateway01.fnal.gov` has) | Same `nc -zv` check from `docs/okd-proxy-setup.md`'s SSH tunnel section, e.g. via a throwaway `oc run busybox ... nc -zvw5 <sshHost> 22` (needs `buildResources`-style CPU/memory overrides -- see the OPA gotcha above) |
+| Caddy crashes immediately with `upstream address scheme is HTTP but transport is configured for HTTP+TLS` | `backend.tunnel.scheme` doesn't match what actually answers on `remoteTarget` | Try the other value -- `helm/templates/configmap.yaml` only emits the TLS transport block when the scheme is `https`, so this is a config mismatch, not a bug once the value is right |
+| Caddy healthy, but `/api/health` through the Route times out or 502s with `tls: first record does not look like a TLS handshake` | `backend.tunnel.scheme: https` but the remote side is actually plain HTTP (or vice versa) | Same fix as above -- flip `scheme`. Not every backend host runs the notify server with `server.tls.enabled: true`; don't assume it matches `kaon.andrewnorman.org`'s instance |
+| Switching `tunnel.enabled` on/off doesn't seem to take effect | The pod needs a rollout, not just a `helm upgrade` -- `scripts/deploy-okd-proxy.sh` always does this (`oc rollout restart` in step 5), but a bare `helm upgrade` alone may not if nothing else changed | Confirm with `oc get pods -n mu2edaq-pager` that a new pod actually started after the values change |
+
+### Gotchas already fixed in this chart (context if you touch `build.yaml` or the probe timing)
+
+- **Plain `openssh-client` on Alpine is not GSSAPI-enabled.** It's split
+  into a separate package, `openssh-client-krb5`, specifically because
+  GSSAPI support pulls in the krb5 dependency chain. Using plain
+  `openssh-client` fails at runtime with `Unsupported option
+  "gssapiauthentication"` -- not a missing-package error, so it's easy
+  to miss. `helm/templates/build.yaml` installs `openssh-client-krb5`
+  (not `openssh-client`).
+- **`kinit`/`klist` come from the `krb5` package**, and the file *is*
+  at `/usr/bin/kinit` even though a bare `apk add krb5` followed by
+  `command:` override execution can report `kinit: not found` --
+  overriding a container's `command:` doesn't reliably inherit the
+  base image's default `$PATH` the way its normal entrypoint would.
+  `helm/templates/tunnel-configmap.yaml`'s entrypoint script sets
+  `PATH` explicitly rather than relying on inheritance.
+- **`ConfigChange` BuildConfig triggers only fire once, at creation** --
+  not on every later Dockerfile edit via `helm upgrade`. Without an
+  explicit rebuild, the `ImageStreamTag` keeps serving a stale image
+  indefinitely with no error anywhere. `scripts/deploy-okd-proxy.sh`
+  compares the BuildConfig's current Dockerfile against whichever one
+  produced the latest existing Build and runs `oc start-build` itself
+  when they differ (see the `[4/7]` step) -- if you ever bypass the
+  script for a Dockerfile change, follow with a manual
+  `oc start-build <release>-caddy -n mu2edaq-pager`.
+- **The GSSAPI/Kerberos handshake alone routinely takes 20-30s.** The
+  `ssh-tunnel` container's `livenessProbe.initialDelaySeconds` is `60`
+  specifically because of this -- too short and the probe kills a
+  tunnel that was seconds from succeeding, forever, since it never
+  gets the chance to finish authenticating before being restarted
+  again. If this needs raising further on a slower path, do it in
+  `helm/templates/deployment.yaml`, not by patching the live
+  Deployment (that gets overwritten on the next `helm upgrade`).
+
 ## Health checks
 
 Through the OKD Route (what the phone actually sees):

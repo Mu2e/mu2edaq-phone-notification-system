@@ -6,11 +6,13 @@ metadata:
   labels:
     {{- include "mu2edaq-pager.labels" . | nindent 4 }}
   annotations:
-    # Patches spec.template.spec.containers[0].image automatically whenever
-    # {{ .Release.Name }}-caddy:latest gets a new build (see templates/build.yaml)
-    # -- no polling needed in the deploy script.
+    # Patches the caddy (and, when the tunnel is enabled, ssh-tunnel)
+    # container image automatically whenever {{ .Release.Name }}-caddy:latest
+    # gets a new build (see templates/build.yaml) -- no polling needed in the
+    # deploy script. Both containers share one image (see the comment on
+    # `image:` in values.yaml), so one build updates both trigger targets.
     image.openshift.io/triggers: |
-      [{"from":{"kind":"ImageStreamTag","name":"{{ .Release.Name }}-caddy:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"caddy\")].image"}]
+      [{"from":{"kind":"ImageStreamTag","name":"{{ .Release.Name }}-caddy:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"caddy\")].image"}{{ if .Values.backend.tunnel.enabled }},{"from":{"kind":"ImageStreamTag","name":"{{ .Release.Name }}-caddy:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"ssh-tunnel\")].image"}{{ end }}]
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -25,6 +27,10 @@ spec:
         # ConfigMap volume mount otherwise updates in place on its own
         # schedule, and Caddy only rereads it on process restart.
         checksum/caddyfile: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.backend.tunnel.enabled }}
+        checksum/tunnel-config: {{ include (print $.Template.BasePath "/tunnel-configmap.yaml") . | sha256sum }}
+        checksum/tunnel-secret: {{ include (print $.Template.BasePath "/tunnel-secret.yaml") . | sha256sum }}
+        {{- end }}
     spec:
       containers:
         - name: caddy
@@ -58,8 +64,74 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+        {{- if .Values.backend.tunnel.enabled }}
+        - name: ssh-tunnel
+          # Same built image as caddy (see templates/build.yaml) -- carries
+          # openssh-client-krb5 (GSSAPI-enabled ssh) + krb5 (kinit/klist).
+          # OpenShift patches this via the same image.openshift.io/triggers
+          # annotation as the caddy container.
+          image: "image-registry.openshift-image-registry.svc:5000/{{ .Release.Namespace }}/{{ .Release.Name }}-caddy:latest"
+          imagePullPolicy: Always
+          command: ["/bin/sh", "/etc/tunnel/entrypoint.sh"]
+          env:
+            - name: SSH_HOST
+              value: {{ required "backend.tunnel.sshHost is required when backend.tunnel.enabled is true" .Values.backend.tunnel.sshHost | quote }}
+            - name: SSH_USER
+              value: {{ required "backend.tunnel.sshUser is required when backend.tunnel.enabled is true" .Values.backend.tunnel.sshUser | quote }}
+            - name: REMOTE_TARGET
+              value: {{ .Values.backend.tunnel.remoteTarget | quote }}
+            - name: LOCAL_PORT
+              value: {{ .Values.backend.tunnel.localPort | quote }}
+            - name: KRB5_CONFIG
+              value: /etc/tunnel/krb5.conf
+            - name: KRB5_PRINCIPAL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-tunnel-keytab
+                  key: principal
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /etc/tunnel
+              name: tunnel-config
+              readOnly: true
+            - mountPath: /etc/krb5-keytab
+              name: tunnel-keytab
+              readOnly: true
+          # The entrypoint script's own while-loop already reconnects (and
+          # re-kinit's) on a dropped SSH session without any help from
+          # Kubernetes -- this probe exists only as a last-resort backstop
+          # for a genuinely stuck container, not as the primary recovery
+          # path. It must stay looser than that loop's own recovery time or
+          # it fights the loop: a probe-triggered container restart resets
+          # initialDelaySeconds too, which is strictly worse than letting
+          # the loop finish its own (measured 20-30s) reconnect in peace.
+          # initialDelaySeconds=60 covers first-start GSSAPI/Kerberos
+          # handshake time; failureThreshold=6 (2 minutes of consecutive
+          # refusal) gives the loop multiple full reconnect cycles before
+          # Kubernetes preempts it.
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.backend.tunnel.localPort }}
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+        {{- end }}
       restartPolicy: Always
       volumes:
         - name: caddyfile
           configMap:
             name: {{ .Release.Name }}-caddyfile
+        {{- if .Values.backend.tunnel.enabled }}
+        - name: tunnel-config
+          configMap:
+            name: {{ .Release.Name }}-tunnel
+            defaultMode: 0555
+        - name: tunnel-keytab
+          secret:
+            secretName: {{ .Release.Name }}-tunnel-keytab
+            items:
+              - key: keytab
+                path: keytab
+        {{- end }}

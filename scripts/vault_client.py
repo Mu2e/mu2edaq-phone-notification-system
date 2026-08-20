@@ -82,11 +82,13 @@ ENVIRONMENTS = ('prod', 'test')
 DEFAULT_ENV = 'test'
 
 # Single source of truth: (vault section, field within section, env var name,
-# dotted helm values.yaml path). Empty for now -- this proxy deployment
-# doesn't need any secrets yet. Add a tuple here (and a matching `vault kv
-# put`, see docs/Vault-Secrets.md) when one is needed, e.g.:
-#   ('proxy', 'shared_token', 'PROXY_SHARED_TOKEN', 'proxy.sharedToken'),
-SECRET_REGISTRY = []
+# dotted helm values.yaml path). The tunnel keytab is the first real entry
+# -- see docs/Vault-Secrets.md for how to populate it and
+# backend.tunnel.enabled in helm/values.yaml for what it's used for.
+SECRET_REGISTRY = [
+    ('tunnel', 'principal', 'TUNNEL_PRINCIPAL', 'backend.tunnel.principal'),
+    ('tunnel', 'keytab_b64', 'TUNNEL_KEYTAB_B64', 'backend.tunnel.keytabB64'),
+]
 
 
 class VaultAuthError(RuntimeError):
@@ -334,9 +336,19 @@ def fetch_all_secrets(client: VaultClient, base_path: str) -> dict:
 
     Returns an empty dict while SECRET_REGISTRY is empty -- no Vault calls
     are made at all in that case.
+
+    A section that hasn't been populated yet reads as empty rather than
+    erroring (missing_ok=True) -- not every consumer needs every section
+    (e.g. the tunnel keytab is only required when backend.tunnel.enabled is
+    true in helm/values.yaml; direct-mode deploys work fine whether or not
+    it's ever been populated). A real auth/permission/connection failure
+    still raises, from VaultClient.read_section.
     """
     sections = sorted({section for section, _field, _env, _helm in SECRET_REGISTRY})
-    section_data = {section: client.read_section(base_path, section) for section in sections}
+    section_data = {
+        section: client.read_section(base_path, section, missing_ok=True)
+        for section in sections
+    }
 
     secrets = {}
     for section, field, env_var, _helm_path in SECRET_REGISTRY:
@@ -359,14 +371,22 @@ def render_json(secrets: dict) -> str:
 
 
 def render_helm_values(secrets: dict) -> str:
+    """Render secrets as a nested YAML fragment matching each entry's full
+    dotted helm_path (e.g. 'backend.tunnel.principal' -> {backend: {tunnel:
+    {principal: ...}}}), not just its first segment -- registry paths are
+    not all two levels deep.
+    """
     env_to_helm = {env: helm for _section, _field, env, helm in SECRET_REGISTRY}
     nested: dict = {}
     for env_var, value in secrets.items():
         helm_path = env_to_helm.get(env_var)
         if not helm_path:
             continue
-        top, sub = helm_path.split('.', 1)
-        nested.setdefault(top, {})[sub] = value
+        *parents, leaf = helm_path.split('.')
+        node = nested
+        for key in parents:
+            node = node.setdefault(key, {})
+        node[leaf] = value
     return yaml.safe_dump(nested, default_flow_style=False, sort_keys=True)
 
 

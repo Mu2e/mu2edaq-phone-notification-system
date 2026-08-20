@@ -109,6 +109,68 @@ backend:
 it's the one piece of real deployment-specific configuration this setup
 needs, and it belongs in `my-values.yaml`, not committed to git.
 
+## SSH tunnel (selectable alternative to a direct connection)
+
+**Live and verified working as of 2026-08-20** against
+`mu2egateway01.fnal.gov` -- real Kerberos auth, tunnel established, and
+`/api/health` confirmed responding end to end through it. See
+`docs/okd-proxy-operations.md`'s SSH tunnel section for the concrete
+issues that came up standing this up (Alpine's GSSAPI-SSH package
+split, a `$PATH` gotcha under a `command:` override, `BuildConfig`
+`ConfigChange` triggers not re-firing on Dockerfile edits, and the
+GSSAPI handshake's realistic timing) -- all fixed in the chart, not
+just worked around by hand.
+
+Some backend hosts have their application port firewalled off from the
+OKD cluster network even though direct connectivity generally works
+(confirmed for `kaon.andrewnorman.org`, but not for every host --
+`mu2egateway01.fnal.gov:8095` times out from OKD as of 2026-08-19). If
+the target's SSH port (22) *is* reachable even though its app port
+isn't -- a common asymmetry, since admin SSH access is often allowed
+from a broader set of sources than one specific application port --
+`backend.tunnel` routes around it without needing anything new opened
+on the OKD side:
+
+```text
+Caddy (127.0.0.1:<localPort>)
+  -> ssh-tunnel sidecar, same pod
+  -> SSH (GSSAPI/Kerberos auth) to backend.tunnel.sshHost:22
+  -> -L forwards to backend.tunnel.remoteTarget, as seen from sshHost
+```
+
+Both containers share one pod (and therefore one network namespace),
+so `127.0.0.1` between them just works -- no extra Service needed. The
+sidecar authenticates from a keytab (`kinit`), holds the tunnel open
+with `ssh -N -L`, and reconnects (re-`kinit`ing first) if it drops; its
+own `livenessProbe` (a TCP check on `localPort`) restarts it if the
+retry loop doesn't recover fast enough on its own.
+
+Enable it in `my-values.yaml`:
+
+```yaml
+backend:
+  # url: still here, but ignored while tunnel.enabled is true
+  tunnel:
+    enabled: true
+    sshHost: mu2egateway01.fnal.gov
+    sshUser: <principal's short username on that host>
+    remoteTarget: "127.0.0.1:8095"   # as seen from sshHost, not from OKD
+    scheme: http   # or https -- whatever remoteTarget itself actually speaks,
+                    # not necessarily what backend.url uses elsewhere. Getting
+                    # this wrong fails fast and clearly (Caddy won't start, or
+                    # 502s with a TLS-handshake error) -- see the
+                    # scheme-mismatch rows in docs/okd-proxy-operations.md.
+```
+
+The keytab and principal (`backend.tunnel.principal` /
+`backend.tunnel.keytabB64`) come from Vault, never from a committed
+file -- see [`docs/Vault-Secrets.md`'s SSH tunnel keytab
+section](Vault-Secrets.md#ssh-tunnel-keytab) for how to obtain and
+populate one. Switching back to direct mode later is just
+`backend.tunnel.enabled: false` and a redeploy -- both modes are fully
+supported side by side in the chart, so it's a one-line flip once a
+firewall exception makes direct connectivity possible instead.
+
 ## Deploying
 
 ```bash

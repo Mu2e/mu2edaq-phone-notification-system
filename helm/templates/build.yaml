@@ -4,6 +4,12 @@
 # comment on `image:` in values.yaml. The Deployment's container image is
 # patched automatically by OpenShift whenever this ImageStreamTag gets a new
 # build, via the image.openshift.io/triggers annotation on deployment.yaml.
+#
+# Always also carries openssh-client-krb5 (GSSAPI-enabled ssh -- plain
+# openssh-client on Alpine is NOT) + krb5 (kinit/klist), so the same image
+# can run the optional ssh-tunnel sidecar container (see
+# backend.tunnel.enabled in values.yaml and templates/deployment.yaml) --
+# avoids a second BuildConfig/ImageStream just for that.
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
@@ -25,7 +31,7 @@ spec:
     dockerfile: |
       FROM {{ .Values.image.repository }}:{{ .Values.image.tag }}
       USER root
-      RUN apk add --no-cache libcap \
+      RUN apk add --no-cache libcap openssh-client-krb5 krb5 \
           && setcap -r /usr/bin/caddy \
           && apk del libcap
   strategy:

@@ -15,7 +15,11 @@ image:
   # (allowPrivilegeEscalation: false, i.e. no_new_privs) refuses to exec
   # ANY binary carrying a file capability, regardless of whether that
   # capability is actually needed -- and it isn't here, since Caddy only
-  # binds :8080. The BuildConfig strips it with `setcap -r`.
+  # binds :8080. The BuildConfig strips it with `setcap -r`, and also adds
+  # openssh-client-krb5 (plain openssh-client is NOT GSSAPI-enabled on
+  # Alpine -- that's a separate package) + krb5 (for kinit/klist) so the
+  # same image can run the optional ssh-tunnel sidecar
+  # (backend.tunnel.enabled below).
   repository: docker.io/library/caddy
   tag: "2-alpine"
   pullPolicy: IfNotPresent
@@ -28,11 +32,46 @@ service:
 
 # ── Backend ───────────────────────────────────────────────────────────────────
 # Where the Caddy pod forwards requests. Must be reachable from the OKD
-# cluster's network. REQUIRED -- set in my-values.yaml, e.g.:
+# cluster's network. REQUIRED (when tunnel.enabled is false) -- set in
+# my-values.yaml, e.g.:
 #   backend:
 #     url: "https://kaon.andrewnorman.org:8095"
 backend:
   url: ""
+
+  # ── SSH tunnel (selectable alternative to direct connection) ─────────────────
+  # For a backend host whose application port is firewalled off from OKD but
+  # whose SSH port isn't (a common asymmetry -- admin SSH access is often
+  # allowed from a broader set of sources than a specific app port). A second
+  # container in the same pod (see templates/deployment.yaml) authenticates
+  # with Kerberos from a keytab, then holds open
+  # `ssh -L 127.0.0.1:<localPort>:<remoteTarget> <sshUser>@<sshHost>`,
+  # reconnecting on drop. Caddy proxies to 127.0.0.1:<localPort> instead of
+  # `backend.url` -- backend.url itself is ignored while this is enabled.
+  tunnel:
+    enabled: false
+    # SSH host to tunnel through, e.g. mu2egateway01.fnal.gov. Its port 22
+    # must be reachable from OKD even if remoteTarget's port isn't directly.
+    sshHost: ""
+    # Kerberos principal / SSH username on sshHost.
+    sshUser: ""
+    # What sshHost forwards to, from ITS point of view (not OKD's). Typically
+    # 127.0.0.1:8095 if the notify server runs directly on sshHost.
+    remoteTarget: "127.0.0.1:8095"
+    # Scheme Caddy uses talking to remoteTarget through the tunnel -- matches
+    # whatever scheme backend.url would normally use (the local server's own
+    # TLS listener, per server.tls in config/notify-server.yaml).
+    scheme: https
+    # Local port inside the pod that the tunnel listens on; Caddy's target.
+    localPort: 18095
+    # REQUIRED when enabled -- both Vault-sourced (see docs/Vault-Secrets.md),
+    # never set a real value here or in a committed file.
+    principal: ""
+    # Base64-encoded keytab content (keytabs are binary; this is what
+    # `vault kv put ... keytab_b64=$(base64 -i host.keytab)` stores, and what
+    # a Kubernetes Secret's `data` field needs directly -- already the right
+    # encoding, no double-encoding).
+    keytabB64: ""
 
 # ── OKD Route ─────────────────────────────────────────────────────────────────
 route:

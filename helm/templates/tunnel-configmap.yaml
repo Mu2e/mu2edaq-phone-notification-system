@@ -1,0 +1,87 @@
+{{- if .Values.backend.tunnel.enabled }}
+# Non-secret config for the ssh-tunnel sidecar (templates/deployment.yaml):
+# the lab-wide Fermilab krb5.conf (realm FNAL.GOV) and the entrypoint script
+# that authenticates from the mounted keytab and holds the SSH tunnel open,
+# reconnecting (and re-authenticating) on drop.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-tunnel
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mu2edaq-pager.labels" . | nindent 4 }}
+data:
+  krb5.conf: |
+    [libdefaults]
+        default_realm = FNAL.GOV
+        dns_lookup_kdc = true
+        forwardable = true
+        ticket_lifetime = 26h
+        renew_lifetime = 7d
+        allow_weak_crypto = false
+        default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96
+        default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96
+        permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96
+
+    [realms]
+        FNAL.GOV = {
+            kdc = krb-fnal-fcc3.fnal.gov:88
+            kdc = krb-fnal-2.fnal.gov:88
+            kdc = krb-fnal-3.fnal.gov:88
+            kdc = krb-fnal-1.fnal.gov:88
+            kdc = krb-fnal-4.fnal.gov:88
+            master_kdc = krb-fnal-admin.fnal.gov:88
+            admin_server = krb-fnal-admin.fnal.gov
+            default_domain = fnal.gov
+        }
+
+    [domain_realm]
+        .fnal.gov = FNAL.GOV
+
+  entrypoint.sh: |
+    #!/bin/sh
+    # Authenticates from the mounted keytab and holds an SSH local-port-forward
+    # open, reconnecting (and re-kinit'ing) if it drops. Caddy proxies to
+    # 127.0.0.1:$LOCAL_PORT; this forwards that to $REMOTE_TARGET as seen from
+    # $SSH_HOST, over a connection authenticated with GSSAPI (Kerberos) rather
+    # than a key -- see backend.tunnel in values.yaml.
+    set -eu
+
+    # OKD's restricted-v2 SCC runs this container as an arbitrary, unmapped
+    # UID with no /etc/passwd entry, so $HOME is unset/unusable -- point
+    # every tool that would otherwise write under it at /tmp explicitly
+    # (writable regardless of UID).
+    export HOME=/tmp
+    export KRB5CCNAME=/tmp/krb5cc_tunnel
+    # A `command:` override on the container doesn't reliably inherit the
+    # base image's default PATH the way its normal entrypoint would --
+    # kinit/ssh (from the krb5 / openssh-client-krb5 packages, both under
+    # /usr/bin) were "not found" without this even though the files exist.
+    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+    authenticate() {
+        kinit -k -t /etc/krb5-keytab/keytab "${KRB5_PRINCIPAL}"
+    }
+
+    authenticate
+
+    while true; do
+        echo "$(date -Iseconds) connecting: ${SSH_USER}@${SSH_HOST} -L 127.0.0.1:${LOCAL_PORT}:${REMOTE_TARGET}" >&2
+        ssh -N \
+            -o GSSAPIAuthentication=yes \
+            -o PreferredAuthentications=gssapi-with-mic \
+            -o GSSAPIDelegateCredentials=no \
+            -o PasswordAuthentication=no \
+            -o BatchMode=yes \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=8 \
+            -o ExitOnForwardFailure=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=/tmp/known_hosts \
+            -L "127.0.0.1:${LOCAL_PORT}:${REMOTE_TARGET}" \
+            "${SSH_USER}@${SSH_HOST}" || true
+        echo "$(date -Iseconds) tunnel exited; re-authenticating and retrying in 5s" >&2
+        authenticate
+        sleep 5
+    done
+{{- end }}

@@ -15,9 +15,7 @@
 #
 # Options:
 #   --env <prod|test>  Which Vault secrets instance to deploy with. Required
-#                   unless --skip-vault is given. SECRET_REGISTRY in
-#                   scripts/vault_client.py is empty today, so this has no
-#                   practical effect yet -- see docs/Vault-Secrets.md.
+#                   unless --skip-vault is given -- see docs/Vault-Secrets.md.
 #   -n NAMESPACE    OKD namespace (default: mu2edaq-pager)
 #   -f VALUES_FILE  Helm values file; repeat to layer files, later files win
 #                   (default: my-values.yaml). Vault-sourced values are always
@@ -39,9 +37,10 @@
 #                   (default: MU2EDAQ_PAGER_VAULT_ROLE, or config/vault.yaml's role)
 #   -h, --help      Show this help message
 #
-# Secrets normally come from Vault (see docs/Vault-Secrets.md), but
-# there are none registered today, so a bare `--env` run still works with
-# no Vault login required. VALUES_FILE (my-values.yaml) carries all of
+# Secrets normally come from Vault (see docs/Vault-Secrets.md) -- a bare
+# `--env` run requires a Vault login, and an unpopulated section (e.g. the
+# tunnel keytab, if backend.tunnel.enabled is false) reads as empty rather
+# than erroring. VALUES_FILE (my-values.yaml) carries all of
 # this deployment's real configuration -- hostname, cert-manager settings,
 # and backend.url.
 
@@ -202,7 +201,7 @@ else
         error "Pass --skip-vault to deploy using only the -f values files instead."
         exit 1
     fi
-    success "Secrets fetched from Vault (SECRET_REGISTRY is currently empty -- see docs/Vault-Secrets.md)"
+    success "Secrets fetched from Vault"
 fi
 
 info "[3/7] Applying Helm release ${RELEASE}"
@@ -266,26 +265,43 @@ else
     success "Helm release applied"
 fi
 
-info "[4/7] Waiting for the in-cluster Caddy image build (${TIMEOUT}s timeout)"
-# BuildConfig's ConfigChange trigger starts a Build as soon as it's created;
-# on a redeploy where nothing about templates/build.yaml changed, no new
-# Build starts and the latest existing one (already Complete) is used as-is.
-# The Build object can take a few seconds to appear after the BuildConfig
-# is first created, so poll rather than checking once.
-BUILD_NAME=""
-deadline=$((SECONDS + TIMEOUT))
-while [[ -z "${BUILD_NAME}" ]]; do
-    BUILD_NAME="$(oc get builds -n "${NAMESPACE}" \
-        -l "openshift.io/build-config.name=${RELEASE}-caddy" \
-        --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}' 2>/dev/null || true)"
-    [[ -n "${BUILD_NAME}" ]] && break
-    if (( SECONDS >= deadline )); then
-        error "No build appeared for buildconfig/${RELEASE}-caddy within ${TIMEOUT}s."
-        error "Check: oc get buildconfig ${RELEASE}-caddy -n ${NAMESPACE}"
-        exit 1
-    fi
-    sleep 3
-done
+info "[4/7] Ensuring the in-cluster Caddy image is up to date (${TIMEOUT}s timeout)"
+# BuildConfig's ConfigChange trigger only fires ONCE, the moment the
+# BuildConfig is first created -- it does NOT re-fire on a later `helm
+# upgrade` that changes the Dockerfile (this bit us directly: a Dockerfile
+# edit landed in the BuildConfig object fine, but the ImageStreamTag kept
+# serving the old image indefinitely, since no new Build ever ran). So:
+# explicitly diff the BuildConfig's current Dockerfile against whichever
+# one produced the latest existing Build (each Build snapshots the
+# Dockerfile that produced it), and start a new Build ourselves whenever
+# they differ or no Build exists yet. Skips a rebuild when nothing changed.
+CURRENT_DOCKERFILE="$(oc get "buildconfig/${RELEASE}-caddy" -n "${NAMESPACE}" -o jsonpath='{.spec.source.dockerfile}' 2>/dev/null || true)"
+BUILD_NAME="$(oc get builds -n "${NAMESPACE}" \
+    -l "openshift.io/build-config.name=${RELEASE}-caddy" \
+    --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}' 2>/dev/null || true)"
+LATEST_BUILD_DOCKERFILE=""
+[[ -n "${BUILD_NAME}" ]] && LATEST_BUILD_DOCKERFILE="$(oc get "build/${BUILD_NAME}" -n "${NAMESPACE}" -o jsonpath='{.spec.source.dockerfile}' 2>/dev/null || true)"
+
+if [[ -z "${BUILD_NAME}" || "${CURRENT_DOCKERFILE}" != "${LATEST_BUILD_DOCKERFILE}" ]]; then
+    info "Dockerfile changed (or no prior build exists) -- starting a new build"
+    oc start-build "${RELEASE}-caddy" -n "${NAMESPACE}" >/dev/null
+    BUILD_NAME=""
+    deadline=$((SECONDS + TIMEOUT))
+    while [[ -z "${BUILD_NAME}" ]]; do
+        BUILD_NAME="$(oc get builds -n "${NAMESPACE}" \
+            -l "openshift.io/build-config.name=${RELEASE}-caddy" \
+            --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}' 2>/dev/null || true)"
+        [[ -n "${BUILD_NAME}" ]] && break
+        if (( SECONDS >= deadline )); then
+            error "No build appeared for buildconfig/${RELEASE}-caddy within ${TIMEOUT}s."
+            error "Check: oc get buildconfig ${RELEASE}-caddy -n ${NAMESPACE}"
+            exit 1
+        fi
+        sleep 3
+    done
+else
+    info "Dockerfile unchanged since build/${BUILD_NAME}; reusing it"
+fi
 info "Watching build/${BUILD_NAME}"
 if ! oc wait "build/${BUILD_NAME}" -n "${NAMESPACE}" \
     --for=jsonpath='{.status.phase}'=Complete --timeout="${TIMEOUT}s" 2>/dev/null; then

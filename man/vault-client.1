@@ -22,9 +22,11 @@ or
 .BR json .
 .PP
 .B SECRET_REGISTRY
-at the top of the script is empty today \(en this deployment is a
-reverse proxy only and needs no secret yet, so every format above
-succeeds immediately with empty output and never contacts Vault. See
+at the top of the script currently carries one entry: the Kerberos
+keytab and principal for the optional SSH-tunnel sidecar
+.RB ( backend.tunnel.enabled " in " helm/values.yaml ).
+An unpopulated section reads as empty rather than erroring, so this
+stays a no-op for direct-mode deploys. See
 .B docs/Vault-Secrets.md
 for how to add the first one.
 .PP
@@ -74,8 +76,10 @@ Precedence: this flag >
 > \fBvault.addr\fR in the config file > \fBhttps://ssivault.fnal.gov:8200\fR.
 .TP
 .BI \-\-base\-path " PATH"
-KV base path under which each secret section (none registered yet \(en see
-.BR SECRET_REGISTRY " above) would be stored. Normally computed from"
+KV base path under which each secret section
+.RI ( "e.g. tunnel" ,
+see
+.BR SECRET_REGISTRY " above) is stored. Normally computed from"
 .B \-\-env
 as
 .IR okd/shared/<env>/mu2edaq-pager ;

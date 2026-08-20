@@ -6,14 +6,20 @@ fetched by `scripts/vault_client.py` *before* `helm upgrade` runs and
 handed to Helm as a generated `--values` file, rather than injected
 in-cluster by an operator/webhook.
 
-**Right now `SECRET_REGISTRY` in `scripts/vault_client.py` is empty.**
-This deployment is a reverse proxy only (see `docs/okd-proxy-setup.md`)
-and doesn't need any secret today — `backend.url`, the Route hostname,
-and the cert-manager settings are all plain configuration, not secrets.
-This page and the scripts exist so the pipeline is ready the moment a
-secret actually is needed (e.g. a shared bearer token at the proxy
-layer, or APNs/API-token material if this project ever grows to host
-`mu2edaq-notify-server` itself in-cluster).
+`SECRET_REGISTRY` in `scripts/vault_client.py` currently carries one
+entry: the Kerberos keytab + principal for the optional SSH-tunnel
+sidecar (`backend.tunnel.enabled` in `helm/values.yaml` — see
+[SSH tunnel keytab](#ssh-tunnel-keytab) below). Everything else about
+this deployment — `backend.url`, the Route hostname, the cert-manager
+settings — is plain configuration, not a secret, and stays in
+`my-values.yaml`.
+
+A section that hasn't been populated yet in Vault reads as empty rather
+than erroring, so `deploy-okd-proxy.sh --env <prod|test>` works fine in
+direct mode (`backend.tunnel.enabled: false`, the default) whether or
+not the tunnel section has ever been written — only turning
+`backend.tunnel.enabled: true` on actually requires it, via Helm's
+`required` guard in `helm/templates/tunnel-secret.yaml`.
 
 - **Vault address:** `https://ssivault.fnal.gov:8200`
 - **Engine:** KV v2
@@ -34,34 +40,64 @@ authenticate **as the application** with an AppRole token — see
 [Application (AppRole) authentication](#application-approle-authentication).
 
 `my-values.yaml` is still fully supported and is where all of this
-deployment's real configuration lives today — Vault only adds secret
-values on top of it, and with an empty registry it contributes nothing
-at all, so nothing breaks if Vault is unreachable or you haven't logged
-in.
+deployment's real configuration lives — Vault only adds the tunnel
+secret on top of it, and it's a no-op for direct-mode deploys.
 
-## Adding the first secret
+## SSH tunnel keytab
 
-When a secret is actually needed:
+Set this up before turning on `backend.tunnel.enabled: true` (see
+`docs/okd-proxy-setup.md`'s SSH tunnel section for the full picture of
+why this exists and how it's used).
+
+**You'll need, from a Fermilab Kerberos admin:**
+- A dedicated **service principal** (not your personal identity — this
+  runs unattended in a pod) with SSH access to the tunnel's target host
+  (e.g. `mu2egateway01.fnal.gov`), such as `host/mu2edaq-pager@FNAL.GOV`
+  or a similarly-scoped service account.
+- A **keytab** for that principal.
+
+Once you have the keytab file:
+
+```bash
+# Vault stores strings, and a keytab is binary -- base64 it first.
+vault kv put -mount=okd shared/<env>/mu2edaq-pager/tunnel \
+  principal="<the principal, e.g. host/mu2edaq-pager@FNAL.GOV>" \
+  keytab_b64="$(base64 -i /path/to/the.keytab)"
+```
+
+Substitute `test` or `prod` for `<env>`. Then set in `my-values.yaml`:
+
+```yaml
+backend:
+  tunnel:
+    enabled: true
+    sshHost: mu2egateway01.fnal.gov
+    sshUser: <the same principal's short username on that host>
+    remoteTarget: "127.0.0.1:8095"
+```
+
+`scripts/deploy-okd-proxy.sh --env <prod|test>` fetches
+`principal`/`keytab_b64` from Vault automatically and mounts them into
+the `ssh-tunnel` sidecar container as a Kubernetes Secret — the keytab
+never touches git or `my-values.yaml`.
+
+**Rotating the keytab**: re-run the same `vault kv put` with a fresh
+keytab, then redeploy — the Secret's content changes, which changes the
+`checksum/tunnel-secret` pod annotation, which forces a rollout that
+picks it up.
+
+## Adding another secret later
+
+The pattern generalizes beyond the tunnel keytab:
 
 1. Add a tuple to `SECRET_REGISTRY` in `scripts/vault_client.py`:
-   ```python
-   SECRET_REGISTRY = [
-       ('proxy', 'shared_token', 'PROXY_SHARED_TOKEN', 'proxy.sharedToken'),
-   ]
-   ```
-   `(vault section, field, env var, dotted helm/values.yaml path)` — the
-   env var name only matters for the `env` output format; the OKD path
-   uses the `helm-values` format and the dotted path directly.
-2. Add the corresponding key to `helm/values.yaml` (e.g. `proxy.sharedToken:
-   ""`) and wire it into whichever template needs it (a `Secret` resource,
-   or an `envFrom`/`env` entry on the Deployment).
-3. Write the value into Vault:
-   ```bash
-   vault kv put -mount=okd shared/<env>/mu2edaq-pager/proxy \
-     shared_token="<value>"
-   ```
-   (or the interactive `vault_populate.py` pattern from `mu2e-talks`, if
-   more than one or two secrets end up needed here).
+   `(vault section, field, env var, dotted helm/values.yaml path)` —
+   the env var name only matters for the `env` output format; the OKD
+   path uses the `helm-values` format and the dotted path directly (any
+   depth — `render_helm_values` builds the full nested structure).
+2. Add the corresponding key(s) to `helm/values.yaml` and wire them
+   into whichever template needs them.
+3. `vault kv put -mount=okd shared/<env>/mu2edaq-pager/<section> <field>=<value>`.
 4. `scripts/deploy-okd-proxy.sh --env <prod|test>` picks it up
    automatically from then on.
 
@@ -122,10 +158,10 @@ path "okd/data/shared/test/mu2edaq-pager/*" { capabilities = ["read"] }
 ```
 
 Note the `/data/` segment — KV v2 puts secret reads under it, so a
-policy written against `okd/shared/...` will not match. There's no
-urgency to request this until `SECRET_REGISTRY` actually has entries —
-the personal-login path (the default) works fine for manual deploys in
-the meantime.
+policy written against `okd/shared/...` will not match. Only worth
+requesting once this deploy needs to run unattended (CI, a scheduled
+job) — the personal-login path (the default) works fine for manual
+deploys in the meantime, including tunnel-mode ones.
 
 ## Configuration precedence
 
@@ -164,8 +200,12 @@ python3 scripts/vault_client.py helm-values --env prod
 python3 scripts/vault_client.py json --env test
 ```
 
-With an empty `SECRET_REGISTRY`, all three commands succeed
-immediately with empty output and never contact Vault at all.
+If the `tunnel` section hasn't been populated for the given `--env`
+yet, all three still succeed (empty `principal`/`keytabB64` rather than
+an error) — they just won't have contacted a nonexistent path
+successfully, only a Vault login is actually required. `helm-values`'
+output stays inert in direct mode regardless, since `helm/templates/
+tunnel-secret.yaml` only renders when `backend.tunnel.enabled` is true.
 
 ## Troubleshooting
 
