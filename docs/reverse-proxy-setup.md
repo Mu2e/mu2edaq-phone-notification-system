@@ -40,7 +40,7 @@ Current resources:
 | EC2 type | `t3.nano` |
 | Public IPv4 | **none held**; auto-assigned on each start, released on stop |
 | Instance profile assoc. | `iip-assoc-04fc734ecacaf5cc2` (attached 31 Aug 2026) |
-| Retired Elastic IP | `eipalloc-003c30b24e96af804` / `54.70.241.171` — disassociated 31 Aug 2026, allocation not yet released |
+| Retired Elastic IP | `eipalloc-003c30b24e96af804` / `54.70.241.171` — released 31 Aug 2026; the account now holds no Elastic IP |
 | Subnet | `subnet-7620d301` (`MapPublicIpOnLaunch: true` -- this is what supplies the address) |
 | Security group | `sg-0bd09144a54c10361` |
 | Instance profile | `mu2edaq-notify-proxy-dns` (Route 53 self-registration) |

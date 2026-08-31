@@ -418,7 +418,7 @@ Carried out 31 August 2026, in this order:
 | IAM write path proved | a TTL-only `UPSERT` succeeded; the same call for `notify-test.andrewnorman.org` was refused with `AccessDenied`, so the record-name condition holds |
 | CAA published | account `3516603126`, verified with `--check` and `dig` |
 | Elastic IP disassociated | allocation kept |
-| **Elastic IP released** | **not done** — see below |
+| Elastic IP released | done; `describe-addresses` is empty and the account holds no Elastic IP |
 
 Two things worth knowing from that run:
 
@@ -430,15 +430,23 @@ Two things worth knowing from that run:
   five-minute drift timer rather than a boot. That is exactly what the timer is
   for, and it means the mechanism was verified without a reboot.
 
-The only remaining step is releasing the allocation, which is irreversible. An
-unassociated Elastic IP is billed at roughly $3.60/month, so leaving it
-allocated is not free. Rolling back instead:
+The cutover is complete. `54.70.241.171` is gone and cannot be reclaimed, so
+there is no rollback to the previous address: recovering from a problem with
+dynamic addressing now means allocating a *new* Elastic IP and publishing it.
 
 ```bash
+alloc=$(aws ec2 allocate-address --region us-west-2 --domain vpc \
+  --query AllocationId --output text)
 aws ec2 associate-address --region us-west-2 \
-  --allocation-id eipalloc-003c30b24e96af804 --instance-id i-000ee813ecd9a47b3
+  --allocation-id "$alloc" --instance-id i-000ee813ecd9a47b3
 scripts/update-notify-dns.sh
 ```
+
+The first certificate renewal under the CAA pin is due around 7 September 2026
+(Caddy renews at two thirds of the 90-day lifetime; the current certificate was
+issued 9 July and expires 7 October). That is the one part of this change with a
+week-long feedback loop — `scripts/update-notify-caa.sh --check` is the cheap
+way to confirm the pin still matches before then.
 
 ## Cutover from the Elastic IP
 
