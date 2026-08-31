@@ -1,0 +1,110 @@
+.TH INSTALL-NOTIFY-DNS-UPDATER 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+install\-notify\-dns\-updater.sh \- install the self\-registering DNS updater on the AWS proxy
+.SH SYNOPSIS
+.B ./scripts/install\-notify\-dns\-updater.sh
+[\fB\-\-emit\-user\-data\fR]
+[\fB\-\-gzip\fR]
+[\fB\-\-no\-caddyfile\fR]
+[\fB\-H\fR \fIHOST\fR]
+[\fB\-u\fR \fIUSER\fR]
+[\fB\-k\fR \fIKEYFILE\fR]
+[\fB\-\-no\-timer\fR]
+[\fB\-\-no\-run\fR]
+.SH DESCRIPTION
+Puts
+.BR mu2edaq-notify-dns-update (1),
+its configuration, its systemd unit and timer, the
+.B caddy.service
+ordering drop\-in and
+.I /etc/caddy/Caddyfile
+onto the EC2 proxy instance. All six come from the repo
+.RI ( scripts/aws\-notify\-dns\-update.sh
+and
+.IR config/aws/ ),
+which is the only copy under test.
+.PP
+The Caddyfile is validated with
+.B caddy validate
+before it replaces the installed one, and a running Caddy is reloaded rather
+than restarted. A stopped Caddy is left stopped: starting it is ordered after
+the DNS update.
+.PP
+Two modes:
+.TP
+default
+Pipe a generated installer over SSH to a running instance, then enable the unit
+and timer and run the updater once. The target address is taken from the EC2
+API, since the instance no longer has a fixed one.
+.TP
+.B \-\-emit\-user\-data
+Print a complete cloud\-init document \(en Caddy install, then the DNS updater
+install, then
+.B systemctl start caddy
+\(en on standard output, for rebuilding the instance from scratch. That order
+matters: Caddy answers the ACME HTTP\-01 challenge on this host's public
+address, so it must not start before the record has been moved to that address.
+.PP
+Do not hand\-edit the installed copies. Edit the repo files and re\-run this,
+or regenerate the user\-data; a pasted copy drifts from the tested one.
+.SH OPTIONS
+.TP
+.B \-\-emit\-user\-data
+Print the cloud\-init document and exit. The document is about 16.5 KB, which
+is over EC2's 16384\-byte user\-data limit, so plain output is for review and
+.B \-\-gzip
+is the form to deploy. A warning is printed to standard error when the document
+exceeds the limit.
+.TP
+.B \-\-gzip
+Emit the document gzipped (about 6 KB). cloud\-init decompresses gzipped
+user\-data; pass it to EC2 as
+.BR fileb:// ,
+and review it with
+.BR "gunzip \-c" .
+.TP
+.B \-\-no\-caddyfile
+Leave
+.I /etc/caddy/Caddyfile
+alone.
+.TP
+.BR \-H ", " \-\-host " " \fIHOST\fR
+Target address. Default: the instance's current public IPv4 from the EC2 API.
+.TP
+.BR \-u ", " \-\-user " " \fIUSER\fR
+SSH user. Default
+.BR ec2\-user .
+.TP
+.BR \-k ", " \-\-key " " \fIKEYFILE\fR
+SSH private key. Default
+.IR data/mu2edaq\-notify\-proxy.pem .
+.TP
+.B \-\-no\-timer
+Install the boot unit but not the five\-minute drift timer.
+.TP
+.B \-\-no\-run
+Install and enable, but do not run the updater immediately.
+.SH EXAMPLES
+Install onto the running instance:
+.PP
+.RS
+.nf
+scripts/install\-notify\-dns\-updater.sh
+.fi
+.RE
+.PP
+Regenerate user\-data for a rebuild and review it before use:
+.PP
+.RS
+.nf
+scripts/install\-notify\-dns\-updater.sh \-\-emit\-user\-data \-\-gzip > /tmp/user\-data.gz
+gunzip \-c /tmp/user\-data.gz | bash \-n
+aws ec2 modify\-instance\-attribute \\
+  \-\-instance\-id i\-000ee813ecd9a47b3 \\
+  \-\-user\-data fileb:///tmp/user\-data.gz
+.fi
+.RE
+.SH SEE ALSO
+.BR mu2edaq-notify-dns-update (1),
+.BR update-notify-dns.sh (1),
+.BR update-notify-caa.sh (1)

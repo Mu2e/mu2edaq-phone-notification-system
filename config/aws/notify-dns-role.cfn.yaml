@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  IAM role and instance profile letting the mu2edaq-notify proxy instance
+  publish its own public IPv4 into Route 53. This is what replaces the Elastic
+  IP: the instance is normally stopped, gets a new address on every start, and
+  moves its own A record to match (see docs/reverse-proxy-setup.md).
+
+Parameters:
+  HostedZoneId:
+    Type: String
+    Default: Z2OL4WKH228GKD
+    Description: Hosted zone holding the public record (andrewnorman.org).
+  RecordName:
+    Type: String
+    Default: notify.andrewnorman.org
+    Description: >-
+      The single record the instance may touch. Lower case, no trailing dot,
+      matched against route53:ChangeResourceRecordSetsNormalizedRecordNames.
+  RoleName:
+    Type: String
+    Default: mu2edaq-notify-proxy-dns
+    Description: Name for the role and the instance profile.
+
+Resources:
+  ProxyDnsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: Self-registration of the mu2edaq-notify proxy A record.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: notify-proxy-self-dns
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # The instance may only UPSERT one A record in one zone. It
+              # cannot delete it, cannot create any other name, and cannot
+              # touch a different record type. Route 53 supplies the three
+              # condition keys on every ChangeResourceRecordSets call; the Null
+              # guards keep ForAllValues from passing vacuously if a future API
+              # version stops sending one.
+              - Sid: UpsertOwnRecordOnly
+                Effect: Allow
+                Action: route53:ChangeResourceRecordSets
+                Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${HostedZoneId}
+                Condition:
+                  'ForAllValues:StringEquals':
+                    route53:ChangeResourceRecordSetsNormalizedRecordNames:
+                      - !Ref RecordName
+                    route53:ChangeResourceRecordSetsRecordTypes:
+                      - A
+                    route53:ChangeResourceRecordSetsActions:
+                      - UPSERT
+                  'Null':
+                    route53:ChangeResourceRecordSetsNormalizedRecordNames: 'false'
+                    route53:ChangeResourceRecordSetsRecordTypes: 'false'
+                    route53:ChangeResourceRecordSetsActions: 'false'
+              # Read the current value so a correct record costs no write, and
+              # confirm the zone exists. Route 53 has no per-record read
+              # condition, so this is zone scoped.
+              - Sid: ReadZone
+                Effect: Allow
+                Action:
+                  - route53:ListResourceRecordSets
+                  - route53:GetHostedZone
+                Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${HostedZoneId}
+              # Poll the submitted change to INSYNC. Change ids are opaque and
+              # not knowable in advance, so this cannot be narrowed further.
+              - Sid: PollChangeStatus
+                Effect: Allow
+                Action: route53:GetChange
+                Resource: !Sub arn:${AWS::Partition}:route53:::change/*
+
+  ProxyDnsInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Ref RoleName
+      Roles:
+        - !Ref ProxyDnsRole
+
+Outputs:
+  RoleArn:
+    Description: Role assumed by the proxy instance.
+    Value: !GetAtt ProxyDnsRole.Arn
+  InstanceProfileName:
+    Description: Pass this to aws ec2 associate-iam-instance-profile.
+    Value: !Ref ProxyDnsInstanceProfile
+  InstanceProfileArn:
+    Value: !GetAtt ProxyDnsInstanceProfile.Arn

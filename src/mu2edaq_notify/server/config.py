@@ -17,7 +17,16 @@ DEFAULTS = {
     "server": {
         "host": "0.0.0.0",
         "port": 8095,
+        # Fallback for the public URL, and the value used when
+        # dynamic_base_url is off. Normally left empty: the URL a phone is
+        # given is derived from the request, so the same server hands out the
+        # right one whether it was reached through the AWS tunnel, the OKD
+        # route, or directly.
         "base_url": "",
+        "dynamic_base_url": True,
+        # Optional allowlist for that derivation: exact hostnames or *.suffix
+        # patterns. Empty accepts whatever host the request arrived on.
+        "trusted_hosts": [],
         "secret_key": "",
         "tls": {
             "enabled": False,
@@ -96,6 +105,8 @@ ENV_MAP = {
     "MU2EDAQ_NOTIFY_HOST": ("server", "host"),
     "MU2EDAQ_NOTIFY_PORT": ("server", "port"),
     "MU2EDAQ_NOTIFY_BASE_URL": ("server", "base_url"),
+    "MU2EDAQ_NOTIFY_DYNAMIC_BASE_URL": ("server", "dynamic_base_url"),
+    "MU2EDAQ_NOTIFY_TRUSTED_HOSTS": ("server", "trusted_hosts"),
     "MU2EDAQ_NOTIFY_TLS_ENABLED": ("server", "tls", "enabled"),
     "MU2EDAQ_NOTIFY_TLS_CERT_FILE": ("server", "tls", "cert_file"),
     "MU2EDAQ_NOTIFY_TLS_KEY_FILE": ("server", "tls", "key_file"),

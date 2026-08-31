@@ -13,7 +13,7 @@ system and where the reverse proxy fits.
 | APNS destination | server-side dispatch config | sends push notifications to registered iPhones |
 | SSH reverse tunnel | local host to EC2 | carries private traffic from EC2 back to local server |
 | Caddy | AWS EC2 | public HTTPS termination and reverse proxy |
-| Route 53 | AWS | DNS for `notify.andrewnorman.org` |
+| Route 53 | AWS | DNS for `notify.andrewnorman.org`; the A record follows the instance, which republishes it at every start, and a CAA record pins certificate issuance to that instance's ACME account |
 | iPhone app | iOS device | registers device, receives pushes, reads events |
 
 ## Public Access Path
@@ -21,8 +21,8 @@ system and where the reverse proxy fits.
 ```text
 iPhone
   -> https://notify.andrewnorman.org/api/...
-  -> Route 53
-  -> EC2 54.70.241.171:443
+  -> Route 53 (A record, TTL 60, republished by the instance at every start)
+  -> EC2 public IPv4 of the current start:443
   -> Caddy
   -> EC2 127.0.0.1:18095
   -> SSH reverse tunnel
@@ -89,9 +89,27 @@ advertised -- check the `org.mu2edaq.notify-server` LaunchAgent's
 
 6. Server stores the APNS device token in `data/notify.db`.
 
-The registration URL comes from `server.base_url` in
-`config/notify-server.yaml`. If QR codes or auto-config payloads contain the
-wrong hostname, fix `server.base_url` and restart the local server.
+The registration URL is **derived from the request that generated the QR code**,
+not from configuration: whatever host and scheme the operator's browser used to
+reach `/devices/enroll` is what the phone is told to talk to. Open the enrollment
+page through the OKD route and the QR says `https://mu2edaq-pager.fnal.gov`;
+open the same server through the AWS tunnel and it says
+`https://notify.andrewnorman.org`; open it directly and it says
+`https://kaon.andrewnorman.org:8095`. Each is correct for the path it came in
+on, and adding a proxy needs no configuration change.
+
+Precedence for that URL:
+
+| Source | When it is used |
+| --- | --- |
+| `X-Forwarded-Host` / `X-Forwarded-Proto` (leftmost value) | set by the proxy in front, so the client-facing name survives a hop that rewrites `Host` |
+| The request's own `Host` and scheme | the normal case -- both Caddy and the OKD router pass `Host` through unchanged |
+| `server.base_url` | `dynamic_base_url: false`, a malformed host, or a host outside `server.trusted_hosts` |
+
+So if a QR code or auto-config payload contains the wrong hostname, the fix is
+to open the enrollment page on the URL the phone should use, rather than to edit
+a config file. `server.trusted_hosts` restricts which hosts may be honoured, and
+`dynamic_base_url: false` pins everything back to `server.base_url`.
 
 ## Push Notification Path
 
@@ -159,7 +177,9 @@ curl https://notify.andrewnorman.org/api/health
 Remote tunnel from EC2:
 
 ```bash
-ssh -i data/mu2edaq-notify-proxy.pem ec2-user@54.70.241.171 \
+ssh -i data/mu2edaq-notify-proxy.pem \
+  -o HostKeyAlias=notify.andrewnorman.org \
+  ec2-user@notify.andrewnorman.org \
   'curl -k https://127.0.0.1:18095/api/health'
 ```
 

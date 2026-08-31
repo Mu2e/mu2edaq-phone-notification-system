@@ -267,7 +267,9 @@ existing AWS path or the local server's configuration. Once
 end to end (including a real test event delivered through it), cutover
 to making it the primary public endpoint is a deliberate, separate step:
 
-1. Update `server.base_url` and `discovery.fallback_url` in
+1. Update `discovery.fallback_url` (used by DAQ publishers, which have no
+   request to derive anything from) and, if you keep one, the `server.base_url`
+   fallback in
    `config/notify-server.yaml` to `https://mu2edaq-pager.fnal.gov`, and
    restart the local server (`./stop-mu2edaq-notify-server.sh &&
    ./start-mu2edaq-notify-server.sh`). This changes what QR enrollment

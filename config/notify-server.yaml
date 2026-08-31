@@ -6,9 +6,22 @@
 server:
   host: 0.0.0.0
   port: 8095
-  # External base URL used in QR codes and auto-configuration payloads.
-  # Leave empty to infer from the request.
+  # The URL a phone is told to talk to, in QR codes and auto-configuration
+  # payloads. Normally derived from the request that asked for it, so the same
+  # server hands out the right URL whichever way it was reached -- through the
+  # OKD route, the AWS tunnel, or directly -- and nothing has to be edited when
+  # the chain changes.
+  dynamic_base_url: true
+  # Fallback for that, and the value used when dynamic_base_url is false or the
+  # request arrives on a host outside trusted_hosts.
   base_url: "https://mu2edaq-pager.fnal.gov"
+  # Optional allowlist for the derivation: exact hostnames, or *.suffix
+  # patterns. Empty accepts whatever host the request arrived on, which is what
+  # makes a new proxy work with no configuration change. Populate it if this
+  # server is ever reachable on a hostname you do not control.
+  trusted_hosts: []
+  #   - notify.andrewnorman.org
+  #   - "*.fnal.gov"
   tls:
     # Enable HTTPS directly in the built-in Flask server. For iPhones,
     # use a certificate trusted by the phone. Ad-hoc/self-signed certs

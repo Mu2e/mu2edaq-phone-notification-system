@@ -1,0 +1,146 @@
+.TH MU2EDAQ-NOTIFY-DNS-UPDATE 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+mu2edaq\-notify\-dns\-update \- publish an EC2 instance's public IPv4 into Route 53
+.SH SYNOPSIS
+.B /usr/local/sbin/mu2edaq\-notify\-dns\-update
+[\fB\-c\fR \fIFILE\fR]
+[\fB\-z\fR \fIZONE_ID\fR]
+[\fB\-r\fR \fIRECORD\fR]
+[\fB\-t\fR \fISECONDS\fR]
+[\fB\-i\fR \fIADDRESS\fR]
+[\fB\-\-tries\fR \fIN\fR]
+[\fB\-\-delay\fR \fISECONDS\fR]
+[\fB\-\-wait\fR|\fB\-\-no\-wait\fR]
+[\fB\-\-log\fR \fIFILE\fR]
+[\fB\-n\fR]
+[\fB\-q\fR]
+.SH DESCRIPTION
+Runs
+.I on
+the mu2edaq\-notify AWS reverse\-proxy instance and points the proxy's public
+.B A
+record at whatever public IPv4 that instance currently holds.
+.PP
+It exists because the proxy no longer carries an Elastic IP. The instance is
+normally stopped, its auto\-assigned public address is released on stop, and a
+different one is attached on the next start, so the record has to follow the
+instance rather than the instance being pinned to an address. The repo copy is
+.IR scripts/aws\-notify\-dns\-update.sh ;
+.BR install\-notify\-dns\-updater.sh (1)
+puts it on the instance as
+.IR /usr/local/sbin/mu2edaq\-notify\-dns\-update .
+.PP
+The address is read from IMDSv2
+.RB ( public\-ipv4 ),
+never from configuration, and is retried while it is still being attached. If
+no address ever appears the run fails rather than publishing something wrong:
+that state means the subnet is not auto\-assigning a public IPv4
+.RB ( MapPublicIpOnLaunch )
+and no address is attached to the interface.
+.PP
+The current record is read first, so a boot where nothing changed costs one
+read and no write. Otherwise a single
+.B UPSERT
+is submitted and, by default, polled to
+.BR INSYNC .
+.SH OPTIONS
+Precedence is command line, then environment, then the configuration file, then
+built\-in defaults.
+.TP
+.BR \-c ", " \-\-config " " \fIFILE\fR
+Configuration file, sourced as shell. Default
+.IR /etc/mu2edaq\-notify\-dns.conf .
+.TP
+.BR \-z ", " \-\-zone " " \fIZONE_ID\fR
+Route 53 hosted zone. Default
+.BR Z2OL4WKH228GKD .
+.TP
+.BR \-r ", " \-\-record " " \fIRECORD\fR
+Record to maintain. Default
+.BR notify.andrewnorman.org .
+The IAM policy pins this name, so changing it needs a policy change too.
+.TP
+.BR \-t ", " \-\-ttl " " \fISECONDS\fR
+Record TTL. Default 60, deliberately short because the address changes on
+every start.
+.TP
+.BR \-i ", " \-\-ip " " \fIADDRESS\fR
+Publish this address instead of asking IMDS. For recovery only.
+.TP
+.B \-\-tries \fIN\fR, \fB\-\-delay\fR \fISECONDS\fR
+IMDS attempts and spacing while waiting for the public address. Default 30 and
+2.
+.TP
+.BR \-\-wait ", " \-\-no\-wait
+Wait, or do not wait, for the change to reach
+.BR INSYNC .
+Waiting is the default because the boot unit is ordered before
+.BR caddy.service :
+returning early would let Caddy attempt ACME validation against a record that
+has not converged.
+.TP
+.BR \-\-log " " \fIFILE\fR
+Also append output here. Empty disables. Default
+.IR /var/log/mu2edaq\-notify\-dns.log .
+.TP
+.BR \-n ", " \-\-dry\-run
+Report the change, submit nothing.
+.TP
+.BR \-q ", " \-\-quiet
+Only report changes and errors.
+.SH ENVIRONMENT
+.B MU2EDAQ_NOTIFY_DNS_CONFIG,
+.B MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID,
+.B MU2EDAQ_NOTIFY_DNS_RECORD,
+.B MU2EDAQ_NOTIFY_DNS_TTL,
+.B MU2EDAQ_NOTIFY_DNS_WAIT,
+.B MU2EDAQ_NOTIFY_DNS_IP_TRIES,
+.B MU2EDAQ_NOTIFY_DNS_IP_DELAY,
+.B MU2EDAQ_NOTIFY_DNS_LOGFILE,
+.B MU2EDAQ_NOTIFY_IMDS_BASE.
+.SH FILES
+.TP
+.I /etc/mu2edaq-notify-dns.conf
+Zone, record, TTL and retry budget.
+.TP
+.I /etc/systemd/system/mu2edaq-notify-dns.service
+Runs this at every boot, ordered before
+.BR caddy.service .
+.TP
+.I /etc/systemd/system/mu2edaq-notify-dns.timer
+Five\-minute drift guard; a no\-op read when the record is already right.
+.TP
+.I /var/log/mu2edaq-notify-dns.log
+.SH EXIT STATUS
+.TP
+.B 0
+Record already correct, or updated.
+.TP
+.B 1
+Failure: no IMDSv2 token, no public address, or a rejected Route 53 change.
+.TP
+.B 2
+Usage error.
+.SH EXAMPLES
+Show what a run would do without touching Route 53:
+.PP
+.RS
+.nf
+sudo mu2edaq\-notify\-dns\-update \-\-dry\-run
+.fi
+.RE
+.PP
+Republish after an instance rebuild, without waiting for convergence:
+.PP
+.RS
+.nf
+sudo mu2edaq\-notify\-dns\-update \-\-no\-wait
+journalctl \-u mu2edaq\-notify\-dns.service \-n 50 \-\-no\-pager
+.fi
+.RE
+.SH SEE ALSO
+.BR install-notify-dns-updater.sh (1),
+.BR update-notify-dns.sh (1),
+.BR update-notify-caa.sh (1),
+.IR docs/reverse\-proxy\-setup.md ,
+.IR docs/reverse\-proxy\-operations.md

@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
+import re
 from pathlib import Path
 
 import segno
@@ -65,9 +67,147 @@ def create_app(cfg, storage, dispatcher=None, sse_hub=None):
     return app
 
 
+# Public URL resolution ------------------------------------------------------
+#
+# The URL a phone must talk to is a property of how the request arrived, not of
+# this process: the same server is reached at notify.andrewnorman.org through
+# the AWS tunnel, at mu2edaq-pager.fnal.gov through the OKD route, and at
+# kaon.andrewnorman.org:8095 directly. An enrollment QR code carrying a
+# hardcoded hostname is wrong in two of those three cases, so the base URL is
+# derived from the request by default and `server.base_url` is the fallback.
+#
+# The host therefore comes from the network, which makes it untrusted input:
+# it is validated against the hostname grammar before use (it ends up inside
+# the QR payload and the autoconfig JSON), and `server.trusted_hosts` can
+# restrict it to a known set.
+
+_HOSTNAME_RE = re.compile(
+    r"^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$")
+_IPV6_RE = re.compile(r"^\[[0-9A-Fa-f:.]{2,45}\]$")
+_WARNED_HOSTS = set()
+
+
+def split_host_port(host):
+    """Split an authority into (host, port). Handles [::1]:8095."""
+    host = (host or "").strip()
+    if host.startswith("["):
+        end = host.find("]")
+        if end == -1:
+            return host, ""
+        rest = host[end + 1:]
+        port = rest[1:] if rest.startswith(":") else ""
+        return host[:end + 1], port
+    if host.count(":") == 1:
+        name, _, port = host.partition(":")
+        return name, port
+    return host, ""
+
+
+def valid_public_host(host):
+    """True for an authority safe to put in a URL we hand to a phone."""
+    name, port = split_host_port(host)
+    if not name:
+        return False
+    if port and not (port.isdigit() and 0 < int(port) < 65536):
+        return False
+    if name.startswith("["):
+        return bool(_IPV6_RE.match(name))
+    return bool(_HOSTNAME_RE.match(name))
+
+
+def host_matches(host, pattern):
+    """Exact match, or a leading-wildcard suffix match (*.fnal.gov)."""
+    name, _ = split_host_port(host)
+    name = name.lower().rstrip(".")
+    pattern = (pattern or "").lower().strip().rstrip(".")
+    if not pattern:
+        return False
+    if pattern.startswith("*."):
+        return name.endswith(pattern[1:]) and len(name) > len(pattern) - 1
+    return name == pattern or split_host_port(pattern)[0] == name
+
+
+def host_is_trusted(host, patterns):
+    """An empty pattern list trusts whatever the request arrived on."""
+    if not patterns:
+        return True
+    return any(host_matches(host, pattern) for pattern in patterns)
+
+
+def _first(header):
+    """Leftmost element of a comma-separated forwarded header.
+
+    Leftmost is the client-facing value: each proxy appends, so the first entry
+    is the hostname or scheme the phone actually used.
+    """
+    return (header or "").split(",")[0].strip()
+
+
+def public_base_url(server_cfg, host="", scheme="https", forwarded_host="",
+                    forwarded_proto="", url_root=""):
+    """Resolve the externally reachable base URL for this request.
+
+    Pure: takes the request's pieces rather than reading the request, so the
+    precedence rules are directly testable.
+    """
+    configured = (server_cfg.get("base_url") or "").rstrip("/")
+    fallback = configured or (url_root or "").rstrip("/")
+
+    if not server_cfg.get("dynamic_base_url", True):
+        return fallback
+
+    candidate = _first(forwarded_host) or host
+    if not valid_public_host(candidate):
+        if candidate and candidate not in _WARNED_HOSTS:
+            _WARNED_HOSTS.add(candidate)
+            log.warning("ignoring malformed request host %r; using %s",
+                        candidate, fallback or "(none)")
+        return fallback
+
+    proto = _first(forwarded_proto).lower()
+    if proto not in ("http", "https"):
+        proto = (scheme or "https").lower()
+
+    name, port = split_host_port(candidate)
+    if (proto == "https" and port == "443") or (proto == "http" and port == "80"):
+        port = ""
+    authority = "%s:%s" % (name, port) if port else name
+
+    trusted = server_cfg.get("trusted_hosts") or []
+    if not host_is_trusted(candidate, trusted):
+        if configured:
+            if candidate not in _WARNED_HOSTS:
+                _WARNED_HOSTS.add(candidate)
+                log.warning("request host %s is not in server.trusted_hosts; "
+                            "using the configured base_url %s",
+                            candidate, configured)
+            return configured
+        if candidate not in _WARNED_HOSTS:
+            _WARNED_HOSTS.add(candidate)
+            log.warning("request host %s is not in server.trusted_hosts and "
+                        "server.base_url is unset; using the request host "
+                        "anyway", candidate)
+
+    return "%s://%s" % (proto, authority)
+
+
+def enrollment_payload(base_url, token):
+    """The JSON a phone reads out of the enrollment QR code."""
+    return json.dumps({"type": "mu2edaq-notify-config",
+                       "server_url": base_url,
+                       "enrollment_token": token},
+                      separators=(",", ":"))
+
+
 def _base_url():
-    configured = current_app.config["NOTIFY_CFG"]["server"].get("base_url")
-    return (configured or request.url_root).rstrip("/")
+    return public_base_url(
+        current_app.config["NOTIFY_CFG"]["server"],
+        host=request.host,
+        scheme=request.scheme,
+        forwarded_host=request.headers.get("X-Forwarded-Host", ""),
+        forwarded_proto=request.headers.get("X-Forwarded-Proto", ""),
+        url_root=request.url_root)
 
 
 def _storage():
@@ -342,8 +482,7 @@ def enrollment_qr():
     cfg = current_app.config["NOTIFY_CFG"]
     if not auth.check_enrollment_token(cfg, token):
         abort(404, description="invalid or expired enrollment token")
-    payload = ('{"type":"mu2edaq-notify-config","server_url":"%s",'
-               '"enrollment_token":"%s"}' % (_base_url(), token))
+    payload = enrollment_payload(_base_url(), token)
     buf = io.BytesIO()
     segno.make(payload, error="m").save(buf, kind="png", scale=6,
                                         border=2)

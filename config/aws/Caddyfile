@@ -1,0 +1,29 @@
+# Caddy configuration for the Mu2e Notify public reverse proxy.
+#
+# Installed on the EC2 instance as /etc/caddy/Caddyfile by
+# scripts/install-notify-dns-updater.sh, and by the user-data document that
+# script generates. Edit it here, not on the instance.
+
+{
+	# Pin the issuer to Let's Encrypt, to match the CAA record on
+	# notify.andrewnorman.org. That record names letsencrypt.org and one ACME
+	# account URI, so Caddy's default fallback to a second CA could only ever
+	# be refused by CAA anyway; naming the issuer keeps the configuration and
+	# the CAA record in visible agreement, and avoids a pointless second
+	# account registration. Changing this means changing the CAA record too
+	# (scripts/update-notify-caa.sh).
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+notify.andrewnorman.org {
+	encode gzip
+
+	# tls_insecure_skip_verify covers only the private hop from Caddy to the
+	# SSH reverse-tunnel listener on loopback. The phone still gets a normal
+	# trusted certificate on the public side.
+	reverse_proxy https://127.0.0.1:18095 {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+}

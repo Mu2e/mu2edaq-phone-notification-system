@@ -1,0 +1,21 @@
+[Unit]
+Description=Publish this instance's public IPv4 to Route 53 (mu2edaq-notify proxy)
+Documentation=file:///usr/share/man/man1/mu2edaq-notify-dns-update.1.gz
+Wants=network-online.target
+After=network-online.target cloud-init.service
+# Ordering only, deliberately not Requires=: Caddy holds a valid certificate
+# for up to 90 days, so it should still serve if a Route 53 write fails.
+Before=caddy.service
+# A failed Route 53 write at boot is retried; cap the attempts. These two are
+# [Unit] options, not [Service] ones, in systemd 229 and later.
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mu2edaq-notify-dns-update
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

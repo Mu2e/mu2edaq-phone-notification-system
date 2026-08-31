@@ -1,0 +1,16 @@
+{
+  "Comment": "Point the Mu2e Notify public name at the proxy instance's current public IPv4",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "__RECORD_NAME__.",
+        "Type": "A",
+        "TTL": __RECORD_TTL__,
+        "ResourceRecords": [
+          {"Value": "__PUBLIC_IP__"}
+        ]
+      }
+    }
+  ]
+}

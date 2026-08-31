@@ -1,0 +1,18 @@
+[Unit]
+Description=Re-check the mu2edaq-notify proxy A record every 5 minutes
+Documentation=file:///usr/share/man/man1/mu2edaq-notify-dns-update.1.gz
+
+# The address only changes across a stop/start, which is a boot, so
+# mu2edaq-notify-dns.service on its own is normally enough. This timer covers
+# the cases that are not a boot: a Route 53 write that failed at boot and
+# exhausted its restarts, or the record edited out from under the instance.
+# The run is a no-op read when the record is already correct.
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Unit=mu2edaq-notify-dns.service
+
+[Install]
+WantedBy=timers.target

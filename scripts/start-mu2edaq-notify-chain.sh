@@ -5,12 +5,16 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=scripts/notify-proxy-common.sh
+. "$ROOT/scripts/notify-proxy-common.sh"
 
-INSTANCE_ID=${MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID:-i-000ee813ecd9a47b3}
-PUBLIC_URL=${MU2EDAQ_NOTIFY_PUBLIC_URL:-https://notify.andrewnorman.org}
+INSTANCE_ID=$MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID
+PUBLIC_URL=${MU2EDAQ_NOTIFY_PUBLIC_URL:-https://$MU2EDAQ_NOTIFY_PROXY_DNS_NAME}
 LOCAL_HEALTH_URL=${MU2EDAQ_NOTIFY_LOCAL_HEALTH_URL:-https://127.0.0.1:8095/api/health}
 PROXY_USER=${MU2EDAQ_NOTIFY_PROXY_USER:-ec2-user}
-PROXY_HOST=${MU2EDAQ_NOTIFY_PROXY_HOST:-54.70.241.171}
+# Filled in after the instance is running: there is no Elastic IP any more, so
+# the address is only known once EC2 has assigned one for this start.
+PROXY_HOST=
 PROXY_KEY=${MU2EDAQ_NOTIFY_PROXY_KEY:-data/mu2edaq-notify-proxy.pem}
 REMOTE_BIND=${MU2EDAQ_NOTIFY_PROXY_REMOTE_BIND:-127.0.0.1:18095}
 LOCAL_TARGET=${MU2EDAQ_NOTIFY_PROXY_LOCAL_TARGET:-127.0.0.1:8095}
@@ -75,12 +79,11 @@ print_security_group_ingress() {
         --output json || true
 }
 
+# shellcheck disable=SC2207
+SSH_OPTS=($(notify_proxy_ssh_opts))
+
 ssh_proxy() {
-    ssh -i "$PROXY_KEY" \
-        -o BatchMode=yes \
-        -o ConnectTimeout=8 \
-        -o StrictHostKeyChecking=accept-new \
-        "$PROXY_USER@$PROXY_HOST" "$@"
+    ssh -i "$PROXY_KEY" "${SSH_OPTS[@]}" "$PROXY_USER@$PROXY_HOST" "$@"
 }
 
 remote_tunnel_bound() {
@@ -90,6 +93,10 @@ remote_tunnel_bound() {
 curl_health() {
     local url=$1
     local insecure=${2:-0}
+    # Truncate first: on a connection timeout curl writes nothing, and a body
+    # left over from the previous call reads as though this one had answered.
+    : > /tmp/mu2edaq-notify-health.out
+    : > /tmp/mu2edaq-notify-health.err
     local args=(--max-time 8 -sS -o /tmp/mu2edaq-notify-health.out -w "%{http_code}")
     if [ "$insecure" = "1" ]; then
         args=(-k "${args[@]}")
@@ -156,6 +163,9 @@ print_diagnostics() {
     echo "instance=$INSTANCE_ID"
     echo "aws_state=$(aws_state 2>/dev/null || echo unknown)"
     echo "aws_status=$(aws_status 2>/dev/null || echo unknown)"
+    echo "api_address=$(notify_proxy_api_ip 2>/dev/null || true)"
+    echo "dns_answer=$(notify_proxy_dns_ip 2>/dev/null || true)"
+    echo "proxy_host=${PROXY_HOST:-unresolved}"
     print_security_group_ingress
     echo "local_8095_listeners:"
     lsof -nP -iTCP:8095 -sTCP:LISTEN 2>/dev/null || true
@@ -179,8 +189,9 @@ require_command() {
 
 log "Starting Mu2e Notify chain from $ROOT"
 log "Configuration:"
-log "  EC2 instance: $INSTANCE_ID"
-log "  proxy host:   $PROXY_HOST"
+log "  EC2 instance: $INSTANCE_ID ($MU2EDAQ_NOTIFY_PROXY_REGION)"
+log "  public name:  $MU2EDAQ_NOTIFY_PROXY_DNS_NAME (zone $MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID)"
+log "  proxy host:   resolved after start; no Elastic IP"
 log "  public URL:   $PUBLIC_URL"
 log "  local health: $LOCAL_HEALTH_URL"
 log "  tunnel:       EC2 $REMOTE_BIND -> local $LOCAL_TARGET"
@@ -195,7 +206,7 @@ if [ ! -f "$PROXY_KEY" ]; then
 fi
 chmod 600 "$PROXY_KEY"
 
-log "Step 1/7: start EC2 instance if needed."
+log "Step 1/8: start EC2 instance if needed."
 state=$(aws_state)
 log "EC2 state before start: $state"
 if [ "$state" = "stopping" ]; then
@@ -213,10 +224,60 @@ run aws ec2 wait instance-status-ok --instance-ids "$INSTANCE_ID"
 log "AWS status after start: $(aws_status)"
 print_security_group_ingress | sed 's/^/[aws] /'
 
-log "Step 2/7: verify SSH access to EC2."
+log "Step 2/8: resolve this start's public address and confirm DNS registration."
+PROXY_HOST=$(notify_proxy_api_ip)
+if [ -z "$PROXY_HOST" ]; then
+    if [ -n "${MU2EDAQ_NOTIFY_PROXY_HOST:-}" ]; then
+        PROXY_HOST=$MU2EDAQ_NOTIFY_PROXY_HOST
+        log "EC2 reports no public address; using the override $PROXY_HOST."
+    else
+        fail "Instance $INSTANCE_ID is running with no public IPv4. Its subnet must auto-assign one (MapPublicIpOnLaunch) or an address must be attached to eth0."
+    fi
+fi
+log "Public address for this start: $PROXY_HOST"
+
+# The instance publishes its own A record at boot (mu2edaq-notify-dns.service),
+# but this script must not depend on that: it is what stops the chain, and
+# stopping can retract the record, so it has to be able to put it back.
+#
+# Route 53 is asked directly rather than a resolver. A resolver caches the
+# previous value for up to the TTL, so polling one cannot distinguish "not
+# published yet" from "published, still cached" -- and waiting on that was
+# worth two and a half minutes of nothing.
+record=$(notify_proxy_record_ip)
+if [ "$record" = "$PROXY_HOST" ]; then
+    log "Route 53 already holds $MU2EDAQ_NOTIFY_PROXY_DNS_NAME -> $record."
+else
+    log "Route 53 holds $MU2EDAQ_NOTIFY_PROXY_DNS_NAME -> ${record:-none}, want $PROXY_HOST."
+    if notify_proxy_wait_for_record "$PROXY_HOST" | sed 's/^/[record] /'; then
+        log "The instance published it itself."
+    elif [ "${MU2EDAQ_NOTIFY_DNS_LOCAL_FALLBACK:-1}" = "1" ]; then
+        log "Publishing it from here (MU2EDAQ_NOTIFY_DNS_LOCAL_FALLBACK=0 to disable)."
+        log "If the instance-side updater is installed, it did not run; check:"
+        log "  systemctl status mu2edaq-notify-dns.service"
+        run scripts/update-notify-dns.sh --ip "$PROXY_HOST"
+    else
+        log "WARNING: record left stale; MU2EDAQ_NOTIFY_DNS_LOCAL_FALLBACK=0."
+        log "The public endpoint will not work until it is published."
+    fi
+fi
+
+# Resolver convergence is a separate, softer matter: the record can be right
+# while this host still caches the old answer for up to the TTL. The tunnel and
+# Caddy do not need DNS at all -- only phones do -- so this warns rather than
+# failing, and step 8 is where a genuine problem shows up.
+if notify_proxy_wait_for_dns "$PROXY_HOST" | sed 's/^/[dns] /'; then
+    log "DNS registration confirmed."
+else
+    log "WARNING: this host still resolves $MU2EDAQ_NOTIFY_PROXY_DNS_NAME to"
+    log "$(notify_proxy_dns_ip) rather than $PROXY_HOST. If Route 53 is correct"
+    log "(above), it is a cached answer and will expire within the 60s TTL."
+fi
+
+log "Step 3/8: verify SSH access to EC2."
 wait_for_ssh "$SSH_WAIT_TRIES" 5 || fail "Timed out waiting for SSH on $PROXY_HOST"
 
-log "Step 3/7: start and verify remote Caddy."
+log "Step 4/8: start and verify remote Caddy."
 run ssh_proxy "sudo systemctl start caddy"
 remote_caddy=$(ssh_proxy "systemctl is-active caddy" || true)
 log "Remote Caddy status: $remote_caddy"
@@ -225,7 +286,7 @@ if [ "$remote_caddy" != "active" ]; then
 fi
 ssh_proxy "ss -ltn | grep -E ':(80|443)' || true" | sed 's/^/[remote-listener] /'
 
-log "Step 4/7: start or verify SSH reverse tunnel."
+log "Step 5/8: start or verify SSH reverse tunnel."
 if [ -f "$PIDFILE" ] && ! kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
     log "Removing stale proxy tunnel pid file $PIDFILE."
     rm -f "$PIDFILE"
@@ -243,7 +304,7 @@ else
         -o ExitOnForwardFailure=yes \
         -o ServerAliveInterval=30 \
         -o ServerAliveCountMax=3 \
-        -o StrictHostKeyChecking=accept-new \
+        "${SSH_OPTS[@]}" \
         -R "$REMOTE_BIND:$LOCAL_TARGET" \
         "$PROXY_USER@$PROXY_HOST" \
         >> "$LOGFILE" 2>&1 &
@@ -258,7 +319,7 @@ fi
 remote_tunnel_bound || fail "Remote tunnel bind $REMOTE_BIND was not found."
 ssh_proxy "ss -ltn | grep '127.0.0.1:18095'" | sed 's/^/[remote-tunnel] /'
 
-log "Step 5/7: start or verify local notify server."
+log "Step 6/8: start or verify local notify server."
 code=$(curl_health "$LOCAL_HEALTH_URL" 1 || true)
 if [ "$code" = "200" ]; then
     log "Local notify server is already healthy."
@@ -269,10 +330,10 @@ else
 fi
 wait_for_health "local notify server" "$LOCAL_HEALTH_URL" 1 20 2 || fail "Local notify server did not become healthy."
 
-log "Step 6/7: verify EC2 can reach local server through tunnel."
+log "Step 7/8: verify EC2 can reach local server through tunnel."
 ssh_proxy "curl -kfsS --max-time 8 https://$REMOTE_BIND/api/health" | sed 's/^/[remote-health] /' || fail "EC2 could not reach local health endpoint through tunnel."
 
-log "Step 7/7: verify public endpoint."
+log "Step 8/8: verify public endpoint."
 wait_for_health "public endpoint" "$PUBLIC_URL/api/health" 0 20 2 || fail "Public endpoint did not become healthy."
 
 log "Mu2e Notify chain is running: $PUBLIC_URL"

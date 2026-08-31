@@ -5,6 +5,8 @@ mu2edaq-notify-server \- Mu2e DAQ notification server
 .B mu2edaq-notify-server
 [\fB--config\fR \fIFILE\fR] [\fB--host\fR \fIADDR\fR] [\fB--port\fR \fIPORT\fR]
 [\fB--db-url\fR \fIURL\fR] [\fB--base-url\fR \fIURL\fR]
+[\fB--dynamic-base-url\fR|\fB--no-dynamic-base-url\fR]
+[\fB--trusted-host\fR \fIHOST\fR]
 [\fB--api-token\fR \fITOKEN\fR]... [\fB--zmq\fR|\fB--no-zmq\fR]
 [\fB--no-discovery\fR] [\fB--debug\fR] [\fB--version\fR]
 .SH DESCRIPTION
@@ -41,7 +43,33 @@ SQLAlchemy database URL. SQLite by default; use a
 postgresql+psycopg2:// URL for Postgres.
 .TP
 .B --base-url URL
-External base URL embedded in QR codes and auto-configuration payloads.
+Fallback base URL for QR codes and auto-configuration payloads. With dynamic
+resolution on (the default) the URL comes from each request instead, and this
+is used only when the request host is unusable \(en see
+.B --no-dynamic-base-url
+and
+.BR --trusted-host .
+.TP
+.B --dynamic-base-url / --no-dynamic-base-url
+Derive the enrollment URL from the request that asked for it \(en its
+.BR X-Forwarded-Host / X-Forwarded-Proto
+if a proxy set them, otherwise its own
+.B Host
+and scheme \(en rather than from
+.BR --base-url .
+On by default: the same server is reached on a different hostname through each
+proxy in front of it, so a configured hostname is wrong for all but one of
+them. Turn it off to pin every payload to
+.BR --base-url .
+.TP
+.B --trusted-host HOST
+Restrict that derivation to this hostname, or to a
+.B *.suffix
+pattern (repeatable). The request host arrives from the network, so it is
+validated against the hostname grammar in all cases; an allowlist is the
+stronger control for a server also reachable on a name you do not own. With no
+allowlist, any well\-formed host is accepted, which is what lets a new proxy
+work with no configuration change.
 .TP
 .B --api-token TOKEN
 Add a publisher bearer token (repeatable).

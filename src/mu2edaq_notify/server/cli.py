@@ -28,7 +28,19 @@ def build_parser():
     p.add_argument("--host", help="bind address")
     p.add_argument("--port", type=int, help="bind port")
     p.add_argument("--db-url", help="SQLAlchemy database URL")
-    p.add_argument("--base-url", help="external base URL for QR codes")
+    p.add_argument("--base-url", help="external base URL for QR codes and "
+                   "enrollment; with dynamic resolution on (the default) this "
+                   "is only the fallback")
+    p.add_argument("--dynamic-base-url", dest="dynamic_base_url",
+                   action="store_true", default=None,
+                   help="derive the enrollment URL from each request's own "
+                        "host and scheme (default)")
+    p.add_argument("--no-dynamic-base-url", dest="dynamic_base_url",
+                   action="store_false",
+                   help="always use --base-url for the enrollment URL")
+    p.add_argument("--trusted-host", action="append", dest="trusted_hosts",
+                   metavar="HOST", help="restrict dynamic resolution to this "
+                   "hostname or *.suffix pattern (repeatable)")
     p.add_argument("--tls", dest="tls", action="store_true", default=None,
                    help="serve HTTPS using server.tls settings")
     p.add_argument("--no-tls", dest="tls", action="store_false",
@@ -63,6 +75,11 @@ def config_from_args(args):
         overrides.append((("server", "port"), args.port))
     if args.base_url:
         overrides.append((("server", "base_url"), args.base_url))
+    if args.dynamic_base_url is not None:
+        overrides.append((("server", "dynamic_base_url"),
+                          args.dynamic_base_url))
+    if args.trusted_hosts:
+        overrides.append((("server", "trusted_hosts"), args.trusted_hosts))
     if args.tls is not None:
         overrides.append((("server", "tls", "enabled"), args.tls))
     if args.tls_cert:

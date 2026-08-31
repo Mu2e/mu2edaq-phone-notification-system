@@ -7,6 +7,9 @@
   <p class="text-sm text-slate-400 mb-4">Open the <strong>Mu2e Notify</strong> app on the phone, choose
     <em>Scan QR code</em>, and point the camera here. The code contains the server address and a one-time
     enrollment token valid for {{ ttl_minutes }} minutes.</p>
+  <p class="text-sm text-slate-400 mb-4">The code points the phone at
+    <code class="text-sky-300">{{ base_url }}</code>, which is the address you used to open this page.
+    If that is not the address the phone can reach, open this page on the right one and generate a new code.</p>
   <div class="bg-white rounded-lg p-4 inline-block">
     <img src="{{ url_for('web.enrollment_qr', token=token) }}" alt="Enrollment QR code" width="260" height="260">
   </div>

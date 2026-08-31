@@ -86,16 +86,27 @@ per subsystem) so they can be revoked individually.
 
 ### 3.2 Base URL (important for QR enrollment)
 
-QR codes and auto-configuration URLs embed the server's address. Set it
-to the name phones can actually reach:
+QR codes and auto-configuration URLs embed the server's address, taken
+from the request that generated them. Enrol phones by opening
+`/devices/enroll` on the address the phone can reach, and the QR code is
+right with no configuration at all — including through a reverse proxy,
+which is the point: the same server has a different public URL behind each
+proxy.
+
+Two optional keys change that:
 
 ```yaml
 server:
-  base_url: "http://mu2edaq01.fnal.gov:8095"
+  base_url: "http://mu2edaq01.fnal.gov:8095"   # fallback, and used when
+                                               # dynamic_base_url is false
+  dynamic_base_url: true                       # default
+  trusted_hosts: []                            # optional allowlist,
+                                               # e.g. ["*.fnal.gov"]
 ```
 
-If left empty the server infers it from the incoming request, which
-breaks when you browse via `localhost` or a tunnel.
+So browsing via `localhost` and enrolling from there still produces a
+`localhost` QR code — the fix is to enrol from the phone-reachable URL,
+or to set `base_url` and `dynamic_base_url: false`.
 
 ### 3.3 Database (optional)
 
@@ -353,7 +364,6 @@ or enable TLS in the built-in server:
 
 ```yaml
 server:
-  base_url: "https://your-hostname:8095"
   tls:
     enabled: true
     cert_file: "config/tls.crt"
@@ -383,7 +393,7 @@ ctest --test-dir build         # C++ (needs CppUnit installed)
 | Delivery status `suppressed` | Rate limiting — identical event within `dispatch.rate_limit_seconds` |
 | Delivery status `logged` for phones | APNs still disabled (§8), or the device has no APNs token yet |
 | Push fails `BadDeviceToken` | `apns.sandbox` doesn't match how the app was installed (Xcode = sandbox, TestFlight/App Store = production) |
-| QR scan does nothing on the phone | Enrollment token expired (default 30 min) — generate a new one; check `server.base_url` is reachable from the phone |
+| QR scan does nothing on the phone | Enrollment token expired (default 30 min) — generate a new one; check that the URL shown on the enrollment page is reachable from the phone, and if it is not, open that page on the address the phone can reach |
 | Discovery not finding the server | mu2edaq-discovery installed in the venv? Server started without `--no-discovery` and `discovery.enabled: true`? Multicast doesn't cross the FNAL gateway — set `MU2EDAQ_NOTIFY_URL` off-network |
 | Publisher used the public fallback instead of local | Only expected when the local address was actually unreachable; otherwise check `discovery.host/port/scheme` in the server config (should be empty/local, not the public URL) |
 | Web UI unstyled with no internet | Tailwind/htmx load from CDNs; on an isolated network vendor them into `web/static/` and adjust `base.html` |

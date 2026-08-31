@@ -58,12 +58,18 @@ server with a certificate trusted by the phone:
 
 ```yaml
 server:
-  base_url: "https://your-hostname:8095"
   tls:
     enabled: true
     cert_file: "config/tls.crt"
     key_file: "config/tls.key"
 ```
+
+The enrollment URL itself needs no configuration: QR codes and
+auto-configuration payloads carry the host and scheme of the request that asked
+for them, so opening `/devices/enroll` through a proxy hands the phone that
+proxy's URL. `server.base_url` is the fallback, `server.trusted_hosts` an
+optional allowlist, and `server.dynamic_base_url: false` pins everything back to
+`base_url`.
 
 For temporary browser testing only:
 
@@ -157,7 +163,7 @@ bearer token, uploads its APNs token, and shows the event dashboard.
 ## Tests
 
 ```bash
-venv/bin/pytest                 # Python: 49 tests (server, filters, publisher, zmq)
+venv/bin/pytest                 # Python: 171 tests (server, filters, publisher, zmq, URLs, AWS DNS/CAA)
 ctest --test-dir build          # C++: CppUnit (skipped if CppUnit not installed)
 # iOS: run the Mu2eNotifyTests scheme in Xcode (XCTest)
 ```
@@ -166,13 +172,17 @@ ctest --test-dir build          # C++: CppUnit (skipped if CppUnit not installed
 
 Man pages in `man/`: `mu2edaq-notify-server(1)`, `mu2edaq-notify(1)`,
 `mu2edaq_notify(3)` (Python API), `mu2edaq_notify_cpp(3)` (C++ API),
-`deploy-okd-proxy(1)`, `vault-client(1)`, `get-vault-apptoken(1)`.
+`deploy-okd-proxy(1)`, `vault-client(1)`, `get-vault-apptoken(1)`,
+`mu2edaq-notify-dns-update(1)`, `update-notify-dns.sh(1)`,
+`update-notify-caa.sh(1)`, `install-notify-dns-updater.sh(1)`.
 The web interface has About, API, and Sitemap pages. The original
 specification is `PhonePushNotificationSpecifications.md`.
 
 Reverse-proxy and phone access docs:
 
-- `docs/reverse-proxy-setup.md` - AWS EC2, Route 53, Caddy, tunnel setup.
+- `docs/reverse-proxy-setup.md` - AWS EC2, Route 53, Caddy, tunnel setup. The
+  proxy holds no Elastic IP: it publishes its own A record at every start, and
+  a CAA record pins issuance to its own ACME account.
 - `docs/reverse-proxy-operations.md` - start/stop/status runbook and troubleshooting.
 - `docs/application-chain.md` - end-to-end publishing, registration, proxy, and APNS chain.
 - `docs/okd-proxy-setup.md` - onsite OKD reverse proxy (Route + cert-manager), no tunnel needed.

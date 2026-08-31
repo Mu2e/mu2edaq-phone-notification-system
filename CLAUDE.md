@@ -38,6 +38,20 @@ cd ios/Mu2eNotify && xcodegen generate         # iOS Xcode project
   `cli.py` (entry point wiring everything)
 - `web/templates/` — Jinja2 + Tailwind CDN + htmx; dashboard subscribes
   to `/api/stream` (SSE)
+
+**Public URL resolution.** Every URL handed to a phone (QR payload,
+`/api/autoconfig`, the `/api/devices/register` response) comes from
+`app.public_base_url()`, which derives it from the request: leftmost
+`X-Forwarded-Host`/`X-Forwarded-Proto` if a proxy set them, else the
+request's own `Host` and scheme. The same server is reached on a
+different hostname behind each proxy (AWS tunnel, OKD route, direct), so
+a configured hostname would be wrong for all but one. `server.base_url`
+is only the fallback. The host is network-supplied and lands inside JSON
+and a QR code, so it is validated against the hostname grammar
+(`valid_public_host`) and the payload is built with `json.dumps`, never
+interpolation; `server.trusted_hosts` optionally restricts it. Keep
+`public_base_url` pure — it takes the request's pieces as arguments so
+the precedence rules stay testable.
 - `src/cpp/notify.cpp` + `src/include/mu2edaq_notify/notify.hpp` — C++
   publisher; self-contained mu2edaq-discovery multicast client
 - `ios/Mu2eNotify/` — SwiftUI; `AppState` owns registration + events,
@@ -50,7 +64,7 @@ session per operation (thread-safe).
 ## Configuration Schema
 
 See `config/notify-server.yaml` (fully commented). Keys: `server`
-(host/port/base_url/secret_key/tls), `database` (SQLAlchemy url,
+(host/port/base_url/dynamic_base_url/trusted_hosts/secret_key/tls), `database` (SQLAlchemy url,
 retention_days), `auth` (api_tokens, api_tokens_file, enrollment
 secret/TTL, oidc), `apns` (key_file/key_id/team_id/bundle_id/sandbox/
 enabled), `zmq` (connect/bind/defaults), `discovery` (host/port/scheme

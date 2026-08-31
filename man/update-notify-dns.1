@@ -1,0 +1,99 @@
+.TH UPDATE-NOTIFY-DNS 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+update\-notify\-dns.sh \- inspect or repair the proxy's public A record from the operator's host
+.SH SYNOPSIS
+.B ./scripts/update\-notify\-dns.sh
+[\fB\-\-check\fR]
+[\fB\-i\fR \fIADDRESS\fR]
+[\fB\-\-instance\fR \fIID\fR]
+[\fB\-z\fR \fIZONE_ID\fR]
+[\fB\-r\fR \fIRECORD\fR]
+[\fB\-t\fR \fISECONDS\fR]
+[\fB\-\-no\-wait\fR]
+[\fB\-n\fR]
+.SH DESCRIPTION
+Prints the proxy instance's state, the public IPv4 the EC2 API reports for it,
+the value of the
+.B A
+record in Route 53, and what DNS actually answers \(en then, unless
+.B \-\-check
+was given, upserts the record to the API address.
+.PP
+This is the break\-glass path. In normal operation the instance publishes its
+own record at boot; see
+.BR mu2edaq-notify-dns-update (1).
+Use this when the instance cannot: before the instance profile is attached
+(the first cutover away from the Elastic IP, or a rebuilt instance), or when
+the instance\-side updater has failed and left the record stale.
+.PP
+The address always comes from the EC2 API, not from a stored value, unless
+.B \-\-ip
+overrides it. Nothing is written when the record is already correct.
+.SH OPTIONS
+.TP
+.B \-\-check
+Report only, change nothing. Exits 1 if the record is stale, which makes it
+usable as a monitoring probe.
+.TP
+.BR \-i ", " \-\-ip " " \fIADDRESS\fR
+Publish this address instead of asking the API.
+.TP
+.B \-\-instance \fIID\fR
+EC2 instance to read the address from. Default
+.BR i\-000ee813ecd9a47b3 .
+.TP
+.BR \-z ", " \-\-zone " " \fIZONE_ID\fR
+Hosted zone. Default
+.BR Z2OL4WKH228GKD .
+.TP
+.BR \-r ", " \-\-record " " \fIRECORD\fR
+Record name. Default
+.BR notify.andrewnorman.org .
+.TP
+.BR \-t ", " \-\-ttl " " \fISECONDS\fR
+Record TTL. Default 60.
+.TP
+.B \-\-no\-wait
+Do not poll the change to
+.BR INSYNC .
+.TP
+.BR \-n ", " \-\-dry\-run
+Print the change batch, submit nothing.
+.SH ENVIRONMENT
+.B MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID,
+.B MU2EDAQ_NOTIFY_PROXY_REGION,
+.B MU2EDAQ_NOTIFY_PROXY_DNS_NAME,
+.B MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID,
+.B MU2EDAQ_NOTIFY_DNS_TTL.
+.SH EXIT STATUS
+.TP
+.B 0
+Record correct, or updated.
+.TP
+.B 1
+Stale under
+.BR \-\-check ,
+or the update could not be made.
+.TP
+.B 2
+Usage error.
+.SH EXAMPLES
+Check whether DNS agrees with the running instance:
+.PP
+.RS
+.nf
+scripts/update\-notify\-dns.sh \-\-check
+.fi
+.RE
+.PP
+Repair a stale record after the instance\-side updater failed:
+.PP
+.RS
+.nf
+scripts/update\-notify\-dns.sh
+.fi
+.RE
+.SH SEE ALSO
+.BR mu2edaq-notify-dns-update (1),
+.BR install-notify-dns-updater.sh (1),
+.BR update-notify-caa.sh (1)

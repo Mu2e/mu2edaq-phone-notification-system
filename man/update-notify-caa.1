@@ -1,0 +1,197 @@
+.TH UPDATE-NOTIFY-CAA 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+update\-notify\-caa.sh \- bind certificate issuance for the proxy's name to one CA and ACME account
+.SH SYNOPSIS
+.B ./scripts/update\-notify\-caa.sh
+[\fB\-\-check\fR]
+[\fB\-\-remove\fR]
+[\fB\-\-account\-uri\fR \fIURI\fR]...
+[\fB\-\-all\-accounts\fR]
+[\fB\-\-ca\fR \fIDOMAIN\fR]
+[\fB\-\-validation\-methods\fR \fILIST\fR]
+[\fB\-\-no\-issuewild\fR]
+[\fB\-r\fR \fIRECORD\fR]
+[\fB\-z\fR \fIZONE_ID\fR]
+[\fB\-t\fR \fISECONDS\fR]
+[\fB\-H\fR \fIHOST\fR]
+[\fB\-\-no\-wait\fR]
+[\fB\-n\fR]
+.SH DESCRIPTION
+Publishes, checks or removes the
+.B CAA
+record set on
+.B notify.andrewnorman.org
+that restricts who may obtain a certificate for the name: RFC 8659 for the
+.B issue
+and
+.B issuewild
+tags, RFC 8657 for the
+.B accounturi
+and
+.B validationmethods
+parameters. Let's Encrypt has enforced both parameters in production since
+December 2022.
+.PP
+The written record set is, by default:
+.PP
+.RS
+.nf
+0 issue "letsencrypt.org;accounturi=<URI>;validationmethods=http\-01,tls\-alpn\-01"
+0 issuewild ";"
+.fi
+.RE
+.SH WHY
+The proxy holds no Elastic IP. A stopped instance returns its public address to
+the AWS pool, so whoever is handed that address next controls ports 80 and 443
+on it and can satisfy an HTTP\-01 or TLS\-ALPN\-01 challenge for the name \(en
+which would let them serve trusted TLS as
+.B notify.andrewnorman.org
+to enrolling phones.
+.PP
+Retracting the
+.B A
+record at teardown closes the window
+.RB ( update-notify-dns.sh (1)
+.BR \-\-retract ).
+This closes the hole itself: with
+.B accounturi
+set, possession of the address is no longer sufficient \(en the ACME account key
+is needed too, and that never leaves the instance.
+.PP
+.B issuewild ";"
+denies wildcard issuance outright, because this name never needs one and a
+wildcard is the certificate an attacker would most want.
+.SH THE ACCOUNT URI
+Read off the instance rather than configured, because Caddy creates the account,
+not the operator. The script searches Caddy's storage for account JSON under
+.IR /var/lib/caddy ,
+.I /root/.local/share/caddy
+and
+.IR /home/*/.local/share/caddy ,
+extracts every
+.I https://acme\-.../acme/acct/N
+it finds, drops staging accounts, and refuses to guess if more than one remains
+\(en pinning the wrong one blocks renewal. The instance must be running.
+.PP
+.B A rebuilt instance means a new account.
+Caddy registers a fresh one when its storage is empty, and the old pin then
+forbids issuance. Caddy renews at two thirds of the 90\-day lifetime, so the
+failure surfaces weeks after the rebuild, not at boot. Re\-run this script as
+part of any rebuild, and check it with
+.B \-\-check
+after one.
+.SH OPTIONS
+.TP
+.B \-\-check
+Compare the live record against the instance's account and change nothing.
+Exits 1 when the record is missing or does not authorize that account, so it
+works as a monitoring probe.
+.TP
+.B \-\-remove
+Delete the record set. The escape hatch for an over\-tight record; it rebuilds
+the
+.B DELETE
+from the live values rather than from what this run would have written, because
+Route 53 requires a delete to match exactly.
+.TP
+.B \-\-account\-uri \fIURI\fR
+Authorize this account instead of asking the instance. Repeatable.
+.TP
+.B \-\-all\-accounts
+Authorize every account found on the instance instead of refusing when there is
+more than one.
+.TP
+.B \-\-ca \fIDOMAIN\fR
+CA identifier. Default
+.BR letsencrypt.org ,
+matching the
+.B acme_ca
+pin in
+.IR config/aws/Caddyfile .
+Change both together.
+.TP
+.B \-\-validation\-methods \fILIST\fR
+RFC 8657
+.BR validationmethods ,
+comma separated. Default
+.BR http\-01,tls\-alpn\-01 ,
+the two challenges Caddy uses here; this also forbids
+.BR dns\-01 ,
+so it would have to be widened before any wildcard or DNS\-challenge
+configuration. An empty value omits the parameter.
+.TP
+.B \-\-no\-issuewild
+Do not write the wildcard denial.
+.TP
+.BR \-r ", " \-\-record " " \fIRECORD\fR
+Record to pin. Writing CAA at the zone apex is refused outright: it would apply
+to every name in the zone without its own CAA, including ones served by ACM
+certificates, and that breakage would only appear at their next renewal.
+.TP
+.BR \-z ", " \-\-zone " " \fIZONE_ID\fR
+Hosted zone. Default
+.BR Z2OL4WKH228GKD .
+.TP
+.BR \-t ", " \-\-ttl " " \fISECONDS\fR
+Record TTL, default 300. Only CAs read this record, and only at issuance.
+.TP
+.BR \-H ", " \-\-host " " \fIHOST\fR, \fB\-u\fR \fIUSER\fR, \fB\-k\fR \fIFILE\fR
+SSH target, user and key for account discovery. The address defaults to the
+instance's current one from the EC2 API.
+.TP
+.B \-\-no\-wait
+Do not poll the change to
+.BR INSYNC .
+.TP
+.BR \-n ", " \-\-dry\-run
+Print the change batch, submit nothing.
+.SH ENVIRONMENT
+.B MU2EDAQ_NOTIFY_CAA_CA,
+.B MU2EDAQ_NOTIFY_CAA_VALIDATION_METHODS,
+.B MU2EDAQ_NOTIFY_CAA_TTL,
+.B MU2EDAQ_NOTIFY_PROXY_DNS_NAME,
+.B MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID,
+.B MU2EDAQ_NOTIFY_PROXY_USER,
+.B MU2EDAQ_NOTIFY_PROXY_KEY.
+.SH PERMISSIONS
+Only the operator writes this record. The instance's own IAM policy
+.RI ( config/aws/notify\-dns\-role.cfn.yaml )
+is limited to
+.B UPSERT
+of the
+.B A
+record and deliberately cannot touch
+.BR CAA ,
+so a compromised proxy cannot widen its own issuance policy.
+.SH EXAMPLES
+Publish the pin, reading the account off the running instance:
+.PP
+.RS
+.nf
+scripts/update\-notify\-caa.sh
+.fi
+.RE
+.PP
+Verify it after a rebuild, and see what is live:
+.PP
+.RS
+.nf
+scripts/update\-notify\-caa.sh \-\-check
+dig +short notify.andrewnorman.org CAA
+.fi
+.RE
+.PP
+Back it out if it is blocking renewal:
+.PP
+.RS
+.nf
+scripts/update\-notify\-caa.sh \-\-remove
+.fi
+.RE
+.SH SEE ALSO
+.BR update-notify-dns.sh (1),
+.BR mu2edaq-notify-dns-update (1),
+.BR install-notify-dns-updater.sh (1),
+.IR docs/reverse\-proxy\-setup.md
+.PP
+Let's Encrypt CAA documentation: https://letsencrypt.org/docs/caa/
