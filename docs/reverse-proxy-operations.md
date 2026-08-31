@@ -194,6 +194,26 @@ scripts/stop-mu2edaq-notify-proxy.sh
 scripts/start-mu2edaq-notify-proxy.sh
 ```
 
+### Public URL returns 502 and everything else looks fine
+
+502 means Caddy is up and the tunnel is not carrying traffic. Almost always the
+local `ssh` died — a network change, a laptop sleep — and the tunnel log ends in
+`Can't assign requested address` or `client_loop: send disconnect`.
+
+```bash
+scripts/restore-mu2edaq-notify-tunnel.sh
+```
+
+It judges health end to end (it asks the proxy to fetch `/api/health` *through*
+the tunnel, since a listening socket on either end proves nothing about the path
+between them), clears a listener stranded on the proxy by a dead session, and
+rebuilds. It is idempotent: a healthy tunnel is left alone.
+
+`--check` reports without changing anything and exits 1 when the tunnel is down,
+so it works as a probe. `--watch --interval 60` keeps it up for a shift, with
+`--max-restarts` turning a persistent fault into one loud failure rather than a
+restart loop. See `restore-mu2edaq-notify-tunnel(1)`.
+
 ### SSH tunnel fails to start
 
 Check:
@@ -209,7 +229,7 @@ Common causes:
 
 | Symptom | Fix |
 | --- | --- |
-| `remote port forwarding failed` | another tunnel is already bound to `127.0.0.1:18095` on EC2 |
+| `remote port forwarding failed` | a listener is still bound to `127.0.0.1:18095` on the proxy, usually left by a session that died uncleanly. `scripts/restore-mu2edaq-notify-tunnel.sh` clears it and rebuilds |
 | `Permission denied (publickey)` | wrong key file or EC2 key pair changed |
 | connection timeout | security group, local firewall, or EC2 instance state |
 | SSH goes to the wrong host, or `HOST KEY VERIFICATION FAILED` | stale DNS: the name still resolves to a previous start's address, which AWS may have handed to someone else. Run `scripts/update-notify-dns.sh --check`, then address the instance by its API address. |

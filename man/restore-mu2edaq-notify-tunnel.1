@@ -1,0 +1,177 @@
+.TH RESTORE-MU2EDAQ-NOTIFY-TUNNEL 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.SH NAME
+restore\-mu2edaq\-notify\-tunnel.sh \- check and rebuild the SSH reverse tunnel to the AWS proxy
+.SH SYNOPSIS
+.B ./scripts/restore\-mu2edaq\-notify\-tunnel.sh
+[\fB\-\-check\fR]
+[\fB\-\-force\fR]
+[\fB\-\-watch\fR]
+[\fB\-\-interval\fR \fISEC\fR]
+[\fB\-\-max\-restarts\fR \fIN\fR]
+[\fB\-\-timeout\fR \fISEC\fR]
+.SH DESCRIPTION
+Works out whether the reverse tunnel
+.RB ( "proxy 127.0.0.1:18095 \-> local 127.0.0.1:8095" )
+is actually carrying traffic, and rebuilds it if it is not.
+.PP
+The tunnel is deliberately unsupervised:
+.B ExitOnForwardFailure
+and the
+.B ServerAlive
+keepalives make a broken one die promptly and visibly rather than linger as a
+zombie reporting health it does not have. This script is the other half of that
+bargain.
+.SH HOW IT DECIDES
+Health is judged
+.IR "end to end" :
+the proxy is asked to fetch
+.I /api/health
+through the tunnel. A listening socket on either end proves nothing about the
+path between them, and the interesting failures are exactly the ones where a
+socket is present and the path is not.
+.PP
+Three failure modes, of which only the first is obvious:
+.TP
+1.
+The local
+.B ssh
+process is gone \(en a network change, a laptop sleep, an OOM kill. The tunnel
+log usually ends in
+.I "Can't assign requested address"
+or
+.IR "client_loop: send disconnect" .
+.TP
+2.
+The local process is alive but the remote listener is not: the connection
+dropped and neither end has noticed yet. A pidfile check calls this healthy;
+the end-to-end check does not.
+.TP
+3.
+The local process is gone but sshd on the proxy still holds
+.B 127.0.0.1:18095
+from the dead session. This is the one that makes a naive restart fail:
+.B ExitOnForwardFailure=yes
+means the new tunnel refuses to start while the stale listener is there, and
+the error \(en
+.I "remote port forwarding failed"
+\(en names the symptom rather than the cause. The script clears that listener
+before rebuilding.
+.PP
+Clearing it is done carefully, because PIDs are recycled and the session giving
+the order is itself an sshd: the process is killed only if its command line is
+.BR sshd ,
+and only if it is not the sshd serving this connection. Anything else is
+reported and left alone.
+.SH OPTIONS
+.TP
+.B \-\-check
+Report what is broken and change nothing. Exits 1 when the tunnel is not
+carrying traffic, so it works as a monitoring probe.
+.TP
+.B \-\-force
+Rebuild even when the tunnel is healthy.
+.TP
+.B \-\-watch
+Keep checking and restore whenever it breaks. Suitable for launchd; see
+EXAMPLES.
+.TP
+.B \-\-interval \fISEC\fR
+Seconds between checks under
+.BR \-\-watch .
+Default 30.
+.TP
+.B \-\-max\-restarts \fIN\fR
+Give up after
+.I N
+restores in one
+.B \-\-watch
+run, so a persistent fault becomes one loud failure rather than a restart loop.
+Default 20;
+.B 0
+removes the limit.
+.TP
+.B \-\-timeout \fISEC\fR
+Per-ssh-command timeout. Default 8.
+.SH WHAT IT DOES NOT DO
+It does not start the EC2 instance \(en that is
+.IR scripts/start\-mu2edaq\-notify\-chain.sh .
+If the proxy has no reachable address the script says so and stops.
+.PP
+It does not start the local notification server either, but it checks: a tunnel
+rebuilt over a dead server carries nothing but 502s, so that is called out
+rather than left to look like success.
+.SH ENVIRONMENT
+.B MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID,
+.B MU2EDAQ_NOTIFY_PROXY_DNS_NAME,
+.B MU2EDAQ_NOTIFY_PROXY_HOST,
+.B MU2EDAQ_NOTIFY_PROXY_USER,
+.B MU2EDAQ_NOTIFY_PROXY_KEY,
+.B MU2EDAQ_NOTIFY_PROXY_REMOTE_BIND,
+.B MU2EDAQ_NOTIFY_PROXY_LOCAL_TARGET,
+.B MU2EDAQ_NOTIFY_PROXY_PIDFILE,
+.B MU2EDAQ_NOTIFY_PROXY_LOGFILE,
+.B MU2EDAQ_NOTIFY_TUNNEL_INTERVAL,
+.B MU2EDAQ_NOTIFY_TUNNEL_MAX_RESTARTS,
+.B MU2EDAQ_NOTIFY_TUNNEL_SSH_TIMEOUT.
+.SH EXIT STATUS
+.TP
+.B 0
+The tunnel is carrying traffic.
+.TP
+.B 1
+It could not be restored, or
+.B \-\-check
+found it broken.
+.TP
+.B 2
+Usage error.
+.SH EXAMPLES
+Restore it after the endpoint starts returning 502:
+.PP
+.RS
+.nf
+scripts/restore\-mu2edaq\-notify\-tunnel.sh
+curl \-fsS https://notify.andrewnorman.org/api/health
+.fi
+.RE
+.PP
+Use it as a probe without changing anything:
+.PP
+.RS
+.nf
+scripts/restore\-mu2edaq\-notify\-tunnel.sh \-\-check || echo "tunnel is down"
+.fi
+.RE
+.PP
+Keep it up for a shift, checking every minute:
+.PP
+.RS
+.nf
+scripts/restore\-mu2edaq\-notify\-tunnel.sh \-\-watch \-\-interval 60
+.fi
+.RE
+.PP
+Under launchd, so it survives logout \(en put this in
+.I ~/Library/LaunchAgents/org.mu2edaq.notify-tunnel-watch.plist
+with
+.B RunAtLoad
+and
+.B KeepAlive
+true, then
+.BR "launchctl bootstrap gui/$(id \-u)" :
+.PP
+.RS
+.nf
+<array>
+  <string>/bin/bash</string>
+  <string>\-lc</string>
+  <string>cd /path/to/mu2edaq\-phone\-notification\-system &amp;&amp;
+    scripts/restore\-mu2edaq\-notify\-tunnel.sh \-\-watch \-\-interval 60</string>
+</array>
+.fi
+.RE
+.SH SEE ALSO
+.BR mu2edaq-notify-server (1),
+.BR update-notify-dns.sh (1),
+.IR scripts/start\-mu2edaq\-notify\-chain.sh ,
+.IR docs/reverse\-proxy\-operations.md

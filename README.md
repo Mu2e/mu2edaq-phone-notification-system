@@ -163,7 +163,7 @@ bearer token, uploads its APNs token, and shows the event dashboard.
 ## Tests
 
 ```bash
-venv/bin/pytest                 # Python: 171 tests (server, filters, publisher, zmq, URLs, AWS DNS/CAA)
+venv/bin/pytest                 # Python: 185 tests (server, filters, publisher, zmq, URLs, AWS DNS/CAA, tunnel)
 ctest --test-dir build          # C++: CppUnit (skipped if CppUnit not installed)
 # iOS: run the Mu2eNotifyTests scheme in Xcode (XCTest)
 ```
@@ -174,7 +174,8 @@ Man pages in `man/`: `mu2edaq-notify-server(1)`, `mu2edaq-notify(1)`,
 `mu2edaq_notify(3)` (Python API), `mu2edaq_notify_cpp(3)` (C++ API),
 `deploy-okd-proxy(1)`, `vault-client(1)`, `get-vault-apptoken(1)`,
 `mu2edaq-notify-dns-update(1)`, `update-notify-dns.sh(1)`,
-`update-notify-caa.sh(1)`, `install-notify-dns-updater.sh(1)`.
+`update-notify-caa.sh(1)`, `install-notify-dns-updater.sh(1)`,
+`restore-mu2edaq-notify-tunnel.sh(1)`.
 The web interface has About, API, and Sitemap pages. The original
 specification is `PhonePushNotificationSpecifications.md`.
 
