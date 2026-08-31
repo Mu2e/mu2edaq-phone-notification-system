@@ -406,6 +406,40 @@ left dangling: controlling the address is then not enough to obtain a
 certificate for the name. See `scripts/update-notify-caa.sh` and
 "CAA: pinning issuance to our own ACME account" in `docs/reverse-proxy-setup.md`.
 
+## Cutover status
+
+Carried out 31 August 2026, in this order:
+
+| Step | Result |
+| --- | --- |
+| CloudFormation stack `mu2edaq-notify-proxy-dns` | `CREATE_COMPLETE`; role and instance profile created |
+| Instance profile associated | `iip-assoc-04fc734ecacaf5cc2`; credentials appeared in IMDS on the running instance, no restart needed |
+| Updater, units, timer and Caddyfile installed | `mu2edaq-notify-dns.service` enabled, `.timer` active |
+| IAM write path proved | a TTL-only `UPSERT` succeeded; the same call for `notify-test.andrewnorman.org` was refused with `AccessDenied`, so the record-name condition holds |
+| CAA published | account `3516603126`, verified with `--check` and `dig` |
+| Elastic IP disassociated | allocation kept |
+| **Elastic IP released** | **not done** — see below |
+
+Two things worth knowing from that run:
+
+* **Disassociating the Elastic IP from a *running* instance immediately
+  auto-assigns a new public IPv4** (`54.70.241.171` → `34.209.188.5`). The
+  stop/start the checklist calls for was not needed to prove the address is
+  auto-assigned; the disassociation proved it on its own.
+* **The instance republished the record by itself within 90 seconds**, from the
+  five-minute drift timer rather than a boot. That is exactly what the timer is
+  for, and it means the mechanism was verified without a reboot.
+
+The only remaining step is releasing the allocation, which is irreversible. An
+unassociated Elastic IP is billed at roughly $3.60/month, so leaving it
+allocated is not free. Rolling back instead:
+
+```bash
+aws ec2 associate-address --region us-west-2 \
+  --allocation-id eipalloc-003c30b24e96af804 --instance-id i-000ee813ecd9a47b3
+scripts/update-notify-dns.sh
+```
+
 ## Cutover from the Elastic IP
 
 One-time, in this order. The gate is step 3: if the instance comes back with no

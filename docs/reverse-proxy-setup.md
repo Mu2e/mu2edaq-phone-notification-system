@@ -39,6 +39,8 @@ Current resources:
 | EC2 instance ID | `i-000ee813ecd9a47b3` |
 | EC2 type | `t3.nano` |
 | Public IPv4 | **none held**; auto-assigned on each start, released on stop |
+| Instance profile assoc. | `iip-assoc-04fc734ecacaf5cc2` (attached 31 Aug 2026) |
+| Retired Elastic IP | `eipalloc-003c30b24e96af804` / `54.70.241.171` — disassociated 31 Aug 2026, allocation not yet released |
 | Subnet | `subnet-7620d301` (`MapPublicIpOnLaunch: true` -- this is what supplies the address) |
 | Security group | `sg-0bd09144a54c10361` |
 | Instance profile | `mu2edaq-notify-proxy-dns` (Route 53 self-registration) |
@@ -201,7 +203,12 @@ Four things about this that matter:
   renewal. `update-notify-caa.sh` refuses to write at the apex.
 * **The account URI is read off the instance, not configured.** Caddy creates
   the account, so the script searches Caddy's storage for it over SSH and
-  refuses to guess if it finds more than one.
+  refuses to guess if it finds more than one. On this instance Caddy runs with
+  an empty `$HOME`, so its storage resolves to the *relative* `./caddy` under
+  the unit's `WorkingDirectory` — the account lives at
+  `/var/lib/caddy/caddy/acme/acme-v02.api.letsencrypt.org-directory/users/default/default.json`,
+  not the `~/.local/share/caddy` the documentation implies. Searching rather
+  than reading a fixed path is what makes that a non-issue.
 * **A rebuilt instance gets a new ACME account.** The old pin then forbids
   issuance, and because Caddy renews at two thirds of the 90-day lifetime the
   failure surfaces *weeks* after the rebuild. Re-running

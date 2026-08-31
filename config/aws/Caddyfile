@@ -3,7 +3,6 @@
 # Installed on the EC2 instance as /etc/caddy/Caddyfile by
 # scripts/install-notify-dns-updater.sh, and by the user-data document that
 # script generates. Edit it here, not on the instance.
-
 {
 	# Pin the issuer to Let's Encrypt, to match the CAA record on
 	# notify.andrewnorman.org. That record names letsencrypt.org and one ACME
