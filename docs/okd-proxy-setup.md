@@ -180,7 +180,7 @@ firewall exception makes direct connectivity possible instead.
 This runs the two-pass cert-manager dance automatically (see
 `docs/okd-proxy-operations.md` for what that means and how to
 troubleshoot it), then verifies `https://mu2edaq-pager.fnal.gov/api/health`.
-See `man/deploy-okd-proxy.1` for the full flag reference, including
+See `man/man1/deploy-okd-proxy.sh.1` for the full flag reference, including
 `--no-cert` (skip cert-manager, use the router's wildcard cert) and
 `--skip-vault` (this deployment needs no Vault secrets today -- see
 `docs/Vault-Secrets.md`).

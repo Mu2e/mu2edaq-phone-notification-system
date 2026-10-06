@@ -30,7 +30,7 @@ not the tunnel section has ever been written — only turning
 
 All fetching (and writing) logic lives in one place,
 [`scripts/vault_client.py`](../scripts/vault_client.py) (man page:
-`man/vault-client.1`), and is consumed by
+`man/man1/vault_client.py.1`), and is consumed by
 [`scripts/deploy-okd-proxy.sh`](../scripts/deploy-okd-proxy.sh) via
 `--env {prod,test}` (**required** unless `--skip-vault` is passed).
 
@@ -124,7 +124,7 @@ Everything above authenticates as **you**, via the LDAP login cached in
 unattended deploys, where the credential should belong to the
 application rather than to a person.
 
-`scripts/get-vault-apptoken.sh` (man page: `man/get-vault-apptoken.1`)
+`scripts/get-vault-apptoken.sh` (man page: `man/man1/get-vault-apptoken.sh.1`)
 provides the alternative, ported from `mu2e-talks`' script of the same
 name with `mu2edaq-pager` defaults and a `MU2EDAQ_PAGER_VAULT_*`
 environment prefix. It:

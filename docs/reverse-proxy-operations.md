@@ -212,7 +212,7 @@ rebuilds. It is idempotent: a healthy tunnel is left alone.
 `--check` reports without changing anything and exits 1 when the tunnel is down,
 so it works as a probe. `--watch --interval 60` keeps it up for a shift, with
 `--max-restarts` turning a persistent fault into one loud failure rather than a
-restart loop. See `restore-mu2edaq-notify-tunnel(1)`.
+restart loop. See `restore-mu2edaq-notify-tunnel.sh(1)`.
 
 ### SSH tunnel fails to start
 

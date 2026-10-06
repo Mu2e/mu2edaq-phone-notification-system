@@ -398,5 +398,5 @@ ctest --test-dir build         # C++ (needs CppUnit installed)
 | Publisher used the public fallback instead of local | Only expected when the local address was actually unreachable; otherwise check `discovery.host/port/scheme` in the server config (should be empty/local, not the public URL) |
 | Web UI unstyled with no internet | Tailwind/htmx load from CDNs; on an isolated network vendor them into `web/static/` and adjust `base.html` |
 
-Man pages: `man ./man/mu2edaq-notify-server.1`, `man ./man/mu2edaq-notify.1`,
-`man ./man/mu2edaq_notify.3`, `man ./man/mu2edaq_notify_cpp.3`.
+Man pages: `man ./man/man1/mu2edaq-notify-server.1`, `man ./man/man1/mu2edaq-notify.1`,
+`man ./man/man3/mu2edaq_notify.3`, `man ./man/man3/mu2edaq_notify_cpp.3`.

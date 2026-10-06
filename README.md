@@ -28,7 +28,7 @@ Components:
 | `src/cpp/`, `src/include/` | C++17 publisher library (libcurl, CMake) |
 | `ios/Mu2eNotify/` | SwiftUI iPhone app (splash screen, dashboard, QR enrollment) |
 | `web/templates/` | Web interface (Tailwind + htmx, live SSE dashboard) |
-| `man/` | Man pages for every executable and API |
+| `man/man1/`, `man/man3/` | Man pages for every executable (section 1) and API (section 3) |
 
 ## Install and run the server
 
@@ -44,7 +44,7 @@ Web interface: `http://<host>:8095/` by default, or
 `https://<host>:8095/` when `server.tls.enabled: true`.
 Configuration precedence:
 command line > `MU2EDAQ_NOTIFY_*` environment > YAML > defaults
-(see `man ./man/mu2edaq-notify-server.1`).
+(see `man ./man/man1/mu2edaq-notify-server.1`).
 
 Before exposing the server, set at least one publisher token in
 `auth.api_tokens`. The database is SQLite (`data/notify.db`) by default;
@@ -170,12 +170,20 @@ ctest --test-dir build          # C++: CppUnit (skipped if CppUnit not installed
 
 ## Documentation
 
-Man pages in `man/`: `mu2edaq-notify-server(1)`, `mu2edaq-notify(1)`,
-`mu2edaq_notify(3)` (Python API), `mu2edaq_notify_cpp(3)` (C++ API),
-`deploy-okd-proxy(1)`, `vault-client(1)`, `get-vault-apptoken(1)`,
+Man pages in `man/man1/` and `man/man3/` (read one in place with
+`man ./man/man1/mu2edaq-notify-server.1`): `mu2edaq-notify-server(1)`,
+`mu2edaq-notify(1)`, `mu2edaq_notify(3)` (Python API),
+`mu2edaq_notify_cpp(3)` (C++ API), `bootstrap.sh(1)`,
+`start-mu2edaq-notify-server.sh(1)`, `stop-mu2edaq-notify-server.sh(1)`,
+`start-mu2edaq-notify-chain.sh(1)`, `stop-mu2edaq-notify-chain.sh(1)`,
+`start-mu2edaq-notify-proxy.sh(1)`, `stop-mu2edaq-notify-proxy.sh(1)`,
+`status-mu2edaq-notify-proxy.sh(1)`, `deploy-okd-proxy.sh(1)`,
+`vault_client.py(1)`, `get-vault-apptoken.sh(1)`,
 `mu2edaq-notify-dns-update(1)`, `update-notify-dns.sh(1)`,
 `update-notify-caa.sh(1)`, `install-notify-dns-updater.sh(1)`,
-`restore-mu2edaq-notify-tunnel.sh(1)`.
+`restore-mu2edaq-notify-tunnel.sh(1)`. Architecture, interfaces and
+operations are in `docs/ARCHITECTURE.md`, `docs/INTERFACES.md` and
+`docs/OPERATIONS.md`.
 The web interface has About, API, and Sitemap pages. The original
 specification is `PhonePushNotificationSpecifications.md`.
 
