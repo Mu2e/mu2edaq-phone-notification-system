@@ -251,7 +251,7 @@ issues (12 individual, one S4 rollup) and four comments on existing issues.
 | PNS-015 | S3 | Publishers send their token wherever an unauthenticated ANNOUNCE points |
 | PNS-016 | S3 | Server discovery runs once per publisher and is never retried |
 | PNS-017 | S3 | Database password and enrollment tokens are written to the server log |
-| PNS-RU | S4 | Rollup: PNS-005, 010, 012, 019–022, 024–028 and the Windows bootstrap gap |
+| PNS-029 | S4 | Rollup: PNS-005, 010, 012, 019–022, 024–028 and the Windows bootstrap gap |
 | PNS-009 | — | comment on #15 (APNs test isolation) |
 | PNS-006 | — | comment on #3 (token comparison timing) |
 | PNS-018 | — | comment on #4 (missing `--config` silently ignored) |

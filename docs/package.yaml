@@ -1,0 +1,404 @@
+schema: mega-review/1
+package: mu2edaq-phone-notification-system
+tier: A
+group: monitoring
+repo:
+  url: git@github.com:Mu2e/mu2edaq-phone-notification-system.git
+  exists: true
+  issues_enabled: true
+doc_dir: docs
+summary: >
+  Terminal alarm destination for the Mu2e DAQ: a Flask server on 8095 that ingests
+  events over an HTTP JSON API or a ZeroMQ compatibility listener, routes them with
+  database-held filter rules, and delivers them to iPhones (APNs), Slack, Discord and
+  a live SSE web dashboard
+languages: [python, cpp, swift, bash, html, javascript]
+loc: 12149
+
+runtime:
+  executables:
+    - name: mu2edaq-notify-server
+      kind: daemon
+      man_page: man/man1/mu2edaq-notify-server.1
+      note: "console script, pyproject.toml:31; production runs it under the untracked launchd agent org.mu2edaq.notify-server"
+    - name: mu2edaq-notify
+      kind: cli
+      man_page: man/man1/mu2edaq-notify.1
+      note: "console script, pyproject.toml:32"
+    - name: mu2edaq_notify
+      kind: library
+      man_page: man/man3/mu2edaq_notify.3
+      note: "Python publisher API, src/mu2edaq_notify/__init__.py:11-12"
+    - name: libmu2edaq_notify
+      kind: library
+      man_page: man/man3/mu2edaq_notify_cpp.3
+      note: "C++17 publisher, CMakeLists.txt:19; header src/include/mu2edaq_notify/notify.hpp"
+    - name: bootstrap.sh
+      kind: script
+      man_page: man/man1/bootstrap.sh.1
+    - name: start-mu2edaq-notify-server.sh
+      kind: script
+      man_page: man/man1/start-mu2edaq-notify-server.sh.1
+    - name: stop-mu2edaq-notify-server.sh
+      kind: script
+      man_page: man/man1/stop-mu2edaq-notify-server.sh.1
+    - name: start-mu2edaq-notify-chain.sh
+      kind: script
+      man_page: man/man1/start-mu2edaq-notify-chain.sh.1
+    - name: stop-mu2edaq-notify-chain.sh
+      kind: script
+      man_page: man/man1/stop-mu2edaq-notify-chain.sh.1
+    - name: start-mu2edaq-notify-proxy.sh
+      kind: script
+      man_page: man/man1/start-mu2edaq-notify-proxy.sh.1
+    - name: stop-mu2edaq-notify-proxy.sh
+      kind: script
+      man_page: man/man1/stop-mu2edaq-notify-proxy.sh.1
+    - name: status-mu2edaq-notify-proxy.sh
+      kind: script
+      man_page: man/man1/status-mu2edaq-notify-proxy.sh.1
+    - name: restore-mu2edaq-notify-tunnel.sh
+      kind: script
+      man_page: man/man1/restore-mu2edaq-notify-tunnel.sh.1
+    - name: update-notify-dns.sh
+      kind: script
+      man_page: man/man1/update-notify-dns.sh.1
+    - name: update-notify-caa.sh
+      kind: script
+      man_page: man/man1/update-notify-caa.sh.1
+    - name: install-notify-dns-updater.sh
+      kind: script
+      man_page: man/man1/install-notify-dns-updater.sh.1
+    - name: mu2edaq-notify-dns-update
+      kind: script
+      man_page: man/man1/mu2edaq-notify-dns-update.1
+      note: "scripts/aws-notify-dns-update.sh, installed on the EC2 proxy as /usr/local/sbin/mu2edaq-notify-dns-update (scripts/install-notify-dns-updater.sh:113-118)"
+    - name: deploy-okd-proxy.sh
+      kind: script
+      man_page: man/man1/deploy-okd-proxy.sh.1
+    - name: get-vault-apptoken.sh
+      kind: script
+      man_page: man/man1/get-vault-apptoken.sh.1
+    - name: vault_client.py
+      kind: script
+      man_page: man/man1/vault_client.py.1
+    - name: notify-proxy-common.sh
+      kind: script
+      waiver: "sourced helper library, never executed (scripts/notify-proxy-common.sh:1-2); its variables are documented in each caller's ENVIRONMENT"
+    - name: aws-proxy-user-data.sh
+      kind: script
+      waiver: "EC2 cloud-init user-data, run once by the instance at first boot, not by an operator; documented in install-notify-dns-updater.sh(1) --emit-user-data"
+    - name: publish_example
+      kind: cli
+      waiver: "example program (src/cpp/examples/publish_example.cpp), documented in mu2edaq_notify_cpp(3) EXAMPLES; installed to bin by CMakeLists.txt:50 (PNS-011)"
+    - name: Mu2eNotify
+      kind: gui
+      waiver: "iOS app (ios/Mu2eNotify), not a host executable; build in ios/README.md, server surface in docs/INTERFACES.md section 8"
+    - name: build.mjs
+      kind: script
+      waiver: "presentation build source for deliverables/mu2edaq-notify-architecture, not an operational tool"
+  services:
+    - org.mu2edaq.notify-server (launchd LaunchAgent, plist not in repo)
+    - org.mu2edaq.notify-proxy-tunnel (launchd LaunchAgent, plist not in repo)
+    - mu2edaq-notify-dns.service (EC2 proxy, config/aws/)
+    - mu2edaq-notify-dns.timer (EC2 proxy, config/aws/)
+    - caddy.service (EC2 proxy, config/aws/Caddyfile)
+  ports:
+    - {port: 8095, proto: tcp, role: http-api-web-ui-sse, source: "src/mu2edaq_notify/server/config.py:19"}
+    - {port: 8096, proto: tcp, role: zmq-pull-ingest-disabled-by-default, source: "src/mu2edaq_notify/server/config.py:66"}
+    - {port: 28999, proto: udp, role: discovery-responder-multicast-239.255.42.99, source: "src/cpp/notify.cpp:34"}
+    - {port: 18095, proto: tcp, role: reverse-ssh-tunnel-on-ec2-loopback, source: "scripts/start-mu2edaq-notify-chain.sh:19"}
+    - {port: 443, proto: tcp, role: public-https-ec2-caddy, source: "config/aws/Caddyfile:17"}
+    - {port: 8080, proto: tcp, role: okd-caddy-pod, source: "helm/templates/configmap.yaml:10"}
+  config_files:
+    - config/notify-server.yaml
+    - config/vault.yaml
+    - config/aws/Caddyfile
+    - config/aws/mu2edaq-notify-dns.conf
+    - helm/values.yaml
+  env_vars:
+    - MU2EDAQ_NOTIFY_CONFIG
+    - MU2EDAQ_NOTIFY_HOST
+    - MU2EDAQ_NOTIFY_PORT
+    - MU2EDAQ_NOTIFY_BASE_URL
+    - MU2EDAQ_NOTIFY_DYNAMIC_BASE_URL
+    - MU2EDAQ_NOTIFY_TRUSTED_HOSTS
+    - MU2EDAQ_NOTIFY_TLS_ENABLED
+    - MU2EDAQ_NOTIFY_TLS_CERT_FILE
+    - MU2EDAQ_NOTIFY_TLS_KEY_FILE
+    - MU2EDAQ_NOTIFY_TLS_ADHOC
+    - MU2EDAQ_NOTIFY_DB_URL
+    - MU2EDAQ_NOTIFY_API_TOKEN
+    - MU2EDAQ_NOTIFY_API_TOKENS_FILE
+    - MU2EDAQ_NOTIFY_APNS_ENABLED
+    - MU2EDAQ_NOTIFY_ZMQ_ENABLED
+    - MU2EDAQ_NOTIFY_ZMQ_BIND
+    - MU2EDAQ_NOTIFY_DISCOVERY_ENABLED
+    - MU2EDAQ_NOTIFY_DISCOVERY_HOST
+    - MU2EDAQ_NOTIFY_DISCOVERY_PORT
+    - MU2EDAQ_NOTIFY_DISCOVERY_SCHEME
+    - MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL
+    - MU2EDAQ_NOTIFY_CATEGORY
+    - MU2EDAQ_NOTIFY_WEB_DIR
+    - MU2EDAQ_NOTIFY_URL
+    - MU2EDAQ_NOTIFY_FALLBACK_URL
+    - MU2EDAQ_NOTIFY_TOKEN
+    - MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID
+    - MU2EDAQ_NOTIFY_PROXY_REGION
+    - MU2EDAQ_NOTIFY_PROXY_DNS_NAME
+    - MU2EDAQ_NOTIFY_PROXY_HOST
+    - MU2EDAQ_NOTIFY_PROXY_USER
+    - MU2EDAQ_NOTIFY_PROXY_KEY
+    - MU2EDAQ_NOTIFY_PROXY_REMOTE_BIND
+    - MU2EDAQ_NOTIFY_PROXY_LOCAL_TARGET
+    - MU2EDAQ_NOTIFY_PROXY_PIDFILE
+    - MU2EDAQ_NOTIFY_PROXY_LOGFILE
+    - MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID
+    - MU2EDAQ_NOTIFY_PUBLIC_URL
+    - MU2EDAQ_NOTIFY_LOCAL_HEALTH_URL
+    - MU2EDAQ_NOTIFY_DNS_SINK
+    - MU2EDAQ_NOTIFY_DNS_RETRACT
+    - MU2EDAQ_NOTIFY_DNS_LOCAL_FALLBACK
+    - MU2EDAQ_NOTIFY_DEBUG
+    - MU2EDAQ_PAGER_VAULT_APPROLE
+    - MU2EDAQ_PAGER_VAULT_ROLE
+    - VAULT_ADDR
+    - VAULT_ENV
+    - VAULT_KV_MOUNT
+    - VAULT_BASE_PATH
+    - VAULT_TOKEN
+
+interactions:
+  depends_on:
+    - package: mu2edaq-discovery
+      via: import
+      direction: out
+      optional: true
+      evidence: "src/mu2edaq_notify/server/cli.py:143"
+      note: "server imports Responder to ANNOUNCE app=notify; meta values are strings (cli.py:125-135)"
+    - package: mu2edaq-discovery
+      via: import
+      direction: out
+      optional: true
+      evidence: "src/mu2edaq_notify/publisher.py:75"
+      note: "Python publisher imports discover() to find the server"
+    - package: mu2edaq-discovery
+      via: udp
+      direction: out
+      optional: true
+      evidence: "src/cpp/notify.cpp:159"
+      note: "C++ publisher speaks the mu2edaq-discovery/1 DISCOVER protocol itself; does not link the library"
+  depended_on_by: []
+  external:
+    - apple-apns
+    - slack-webhook
+    - discord-webhook
+    - aws-ec2
+    - aws-route53
+    - okd
+    - hashicorp-vault (deploy time only)
+    - letsencrypt
+    - fermilab-sso-oidc (optional, off in shipped config)
+    - cdn (tailwind, htmx)
+
+quality:
+  tests: {present: true, framework: pytest, count: 185}
+  ci: {present: false, workflows: []}
+  license: MIT
+  artifacts_clean: true
+
+findings:
+  - id: PNS-023
+    severity: S1
+    type: bug
+    title: "comment on existing #1: the public web admin is unauthenticated in the configuration production runs"
+    issue: "https://github.com/Mu2e/mu2edaq-phone-notification-system/issues/1"
+    fingerprint: 317a8f36
+  - id: PNS-014
+    severity: S2
+    type: bug
+    title: "[helm] OKD proxy disables certificate verification on its hop to the backend"
+    issue: pending
+    fingerprint: ec68136c
+  - id: PNS-001
+    severity: S3
+    type: bug
+    title: "[zmq] dashboard-schema events lose severity, source and category in the ZeroMQ listener"
+    issue: pending
+    fingerprint: 3e666032
+  - id: PNS-002
+    severity: S3
+    type: bug
+    title: "[dispatch] a transient delivery failure is never retried"
+    issue: pending
+    fingerprint: 82e65376
+  - id: PNS-003
+    severity: S3
+    type: bug
+    title: "[dispatch] a slow or dead channel delays every later channel and every queued event"
+    issue: pending
+    fingerprint: 9cfc629e
+  - id: PNS-004
+    severity: S3
+    type: bug
+    title: "[config] notify-server.yaml ships one site's TLS paths and APNs identity"
+    issue: pending
+    fingerprint: 8b8dfa0b
+  - id: PNS-007
+    severity: S3
+    type: enhancement
+    title: "[ops] production supervision is an untracked per-user LaunchAgent; no unit ships for any platform"
+    issue: pending
+    fingerprint: d658cff3
+  - id: PNS-008
+    severity: S3
+    type: enhancement
+    title: "[ci] no CI for a 185-test suite"
+    issue: pending
+    fingerprint: 71973a9c
+  - id: PNS-011
+    severity: S3
+    type: bug
+    title: "[build] CMake install tree has stale man paths and no package Config file"
+    issue: pending
+    fingerprint: cd6d3c6b
+  - id: PNS-013
+    severity: S3
+    type: bug
+    title: "[health] /api/health reports configured rather than effective APNs and ZeroMQ state"
+    issue: pending
+    fingerprint: 30eb11f3
+  - id: PNS-015
+    severity: S3
+    type: bug
+    title: "[publisher] publishers trust unauthenticated discovery replies to choose where to send their credential"
+    issue: pending
+    fingerprint: 8c54748b
+  - id: PNS-016
+    severity: S3
+    type: bug
+    title: "[publisher] server discovery runs once per publisher and is never retried"
+    issue: pending
+    fingerprint: 3e3775b0
+  - id: PNS-017
+    severity: S3
+    type: bug
+    title: "[logging] the database password and enrollment JWTs are written to the server log"
+    issue: pending
+    fingerprint: 21e06c86
+  - id: PNS-009
+    severity: S3
+    type: bug
+    title: "comment on existing #15: APNs test also depends on the pytest working directory; still the only failure (1 of 185)"
+    issue: "https://github.com/Mu2e/mu2edaq-phone-notification-system/issues/15"
+    fingerprint: 1b32d7de
+  - id: PNS-018
+    severity: S3
+    type: bug
+    title: "comment on existing #4: a missing --config path is ignored silently and the server starts open on defaults"
+    issue: "https://github.com/Mu2e/mu2edaq-phone-notification-system/issues/4"
+    fingerprint: 3fb05df9
+  - id: PNS-006
+    severity: S4
+    type: bug
+    title: "comment on existing #3: publisher tokens are compared with list membership, not hmac.compare_digest"
+    issue: "https://github.com/Mu2e/mu2edaq-phone-notification-system/issues/3"
+    fingerprint: d2710ae7
+  - id: PNS-029
+    severity: S4
+    type: documentation
+    title: "[hygiene] mega-review S4 rollup: secrets, doc dir, SSE gaps, error bodies, license, stale comments"
+    issue: pending
+    fingerprint: be97ef8c
+    rolls_up:
+      - {id: PNS-005, fingerprint: ea36d257, title: "session and enrollment secrets regenerate on every restart, contradicting config/notify-server.yaml:33"}
+      - {id: PNS-010, fingerprint: 77957a52, title: "empty doc/ alongside the real docs/"}
+      - {id: PNS-012, fingerprint: b707e20d, title: "SSE drops events for a slow client without a gap marker"}
+      - {id: PNS-019, fingerprint: f9584208, title: "deploy-okd-proxy.sh exits 0 on an unknown option"}
+      - {id: PNS-020, fingerprint: b87ce721, title: "/api error bodies are HTML for 400 and 500"}
+      - {id: PNS-021, fingerprint: a57a6404, title: "the Python publisher raises on an empty event"}
+      - {id: PNS-022, fingerprint: 1e16da2e, title: "rate-limit comment names the wrong key"}
+      - {id: PNS-024, fingerprint: 011e32ea, title: "pyproject.toml says BSD-3-Clause, LICENSE says MIT"}
+      - {id: PNS-025, fingerprint: 77fdaad2, title: "notify.hpp usage example puts the token in fallback_url"}
+      - {id: PNS-026, fingerprint: e0583e43, title: "stale 'no secrets today' comments; vault_client.py:30 names the old man path"}
+      - {id: PNS-027, fingerprint: cfb3eca4, title: "DNS updater units' Documentation= names a man page never installed"}
+      - {id: PNS-028, fingerprint: 1c286a34, title: "mu2edaq-config holds drifted copies of notify-server.yaml"}
+
+notes:
+  dedup: >
+    gh issue list --state all (read) on 2026-10-06 returned #1-#15, all open, none
+    carrying a mega-review fingerprint. Four findings are comments on existing
+    issues by the section 6 rule 2 title-overlap judgement: PNS-023 on #1
+    (unauthenticated web admin), PNS-009 on #15 (APNs test isolation), PNS-018 on
+    #4 (config path handling), PNS-006 on #3 (publisher tokens). 13 new issues,
+    under the 15-issue cap. ISSUES-PENDING.md parses with
+    docs/mega-review/tools/stage_issues.py (17 records, no problems).
+  zmq_verdict: >
+    Confirmed. The PULL bind on 8096 (zmq_listener.py:73-79, config.py:66) is
+    transport-compatible with a mu2edaq-dashboard PUSH sender pointed at it; the SUB
+    mode cannot reach the dashboard (PULL on 5555, no PUB). normalize_event reads
+    severity/source/category (events.py:64,74,77), the bus carries
+    error_level/subsystem/event_category (mu2edaq-dashboard/sender.py:90-97), so every
+    dashboard level arrives as zmq.default_severity=warning (config.py:67), source
+    zmq, no category. Reproduced through ZmqListener._parse for all five levels.
+    Under the shipped errors-to-phones rule (min_severity error) a dashboard error
+    does not page at all. S3 (PNS-001) because zmq.enabled defaults to false
+    (config.py:64, config/notify-server.yaml:76) and no shipped sender targets 8096.
+  credentials: >
+    config/apns_key.p8 and auth.api_tokens are gitignored (.gitignore:10,13) and
+    absent from this repository's history; no exposure filed here. The APNs key
+    tracked in mu2edaq-config is a superproject matter. Reviewed handling:
+    the running server never contacts Vault; deploy-okd-proxy.sh fails closed on
+    any Vault auth/permission/connection error (vault_client.py:444,
+    deploy-okd-proxy.sh:199-203) and the chart refuses to render tunnel mode
+    without its keytab (helm/templates/tunnel-secret.yaml:15-17). Publisher tokens
+    are compared with list membership (PNS-006, S4); device tokens are SHA-256
+    hashed and looked up by hash. Token scoping: any publisher token may publish
+    as any source and read all history; enrollment JWTs are reusable within their
+    30 min TTL. Secrets in logs: database URL with password and enrollment JWTs in
+    Werkzeug request lines (PNS-017). The draft's claim that session and enrollment
+    secrets regenerate on every restart is confirmed (config.py:182-189; no
+    persistence anywhere, contrary to config/notify-server.yaml:33) and kept at S4
+    (PNS-005).
+  s1_basis: >
+    PNS-023 is assessed S1 from tracked evidence: the production launchd agent
+    runs config/notify-server.yaml (OIDC off), both proxies forward every path,
+    and the Flask test client shows anonymous enrollment and destination deletion.
+    The live endpoints and the EC2 security group were not probed.
+  production_tree: >
+    The launchd agent's WorkingDirectory is this superproject checkout, so the
+    production pager runs whatever branch is checked out here (2026-10-06:
+    mu2e-sept-mega-review) at its next restart. This review changed documentation
+    only.
+  stale_man_paths: >
+    After the man/manN move, two references to flat paths remain in files this
+    review may not edit: CMakeLists.txt:60,62 (install(FILES man/... OPTIONAL), now
+    installs no man pages silently; PNS-011) and scripts/vault_client.py:30
+    (docstring names man/vault-client.1; PNS-026). No test, script or doc reads a
+    man path.
+  doc_dir: >
+    Both doc/ (empty, untracked, unreferenced) and docs/ exist; docs/ is used.
+    doc/ is staged as S4 (PNS-010) and was not deleted.
+  loc: >
+    Tracked code: Python 5140 (2305 tests), shell 3311, Swift 1049, C++ 546,
+    JavaScript 588 (deck build), HTML templates 493, CMake 63, YAML/Helm 836,
+    systemd/Caddy/templates 123. Markdown, man pages, JSON and binaries excluded.
+  tests: >
+    pytest 185 (all pass from the repository root on a host holding
+    config/apns_key.p8; 1 fails elsewhere, #15). One CppUnit test, built only when
+    CppUnit is found (CMakeLists.txt:33-45). One XCTest target under ios/.
+  artifacts: >
+    git ls-files shows no venv, build tree, database or key. The tracked
+    deliverables/mu2edaq-notify-architecture/output/output.pptx and its source
+    images are intentional (commit 006cadb, .gitignore comments).
+  license: >
+    LICENSE is MIT; pyproject.toml:11 declares BSD-3-Clause (PNS-024).
+  completion_pass: >
+    Completed from two terminated agents' drafts. Every draft claim cited in the
+    docs was re-checked against source; corrections made: bootstrap.sh(1) wrongly
+    said re-runs upgrade packages; mu2edaq-notify(1) and OPERATIONS.md now state
+    that the publisher verifies TLS with no override (the draft's
+    --server https://localhost:8095 check would fail); start-chain/stop-proxy
+    environment and exit-status wording; ISSUES-PENDING.md made parseable
+    (Title lines, numeric rollup id PNS-029, one fingerprint comment per body).
+    All five pre-existing-file edits were man-path corrections and were kept.
