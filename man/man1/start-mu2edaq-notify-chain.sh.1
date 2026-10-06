@@ -1,0 +1,138 @@
+.TH START-MU2EDAQ-NOTIFY-CHAIN.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+start-mu2edaq-notify-chain.sh \- bring up the full public path: EC2 proxy, Caddy, reverse tunnel, local server
+.SH SYNOPSIS
+.B scripts/start\-mu2edaq\-notify\-chain.sh
+.SH DESCRIPTION
+Starts and verifies, in eight logged steps, the chain
+phone \(-> EC2 Caddy \(-> SSH reverse tunnel \(-> local
+.BR mu2edaq-notify-server (1).
+Every step is idempotent, so the script also serves as a repair:
+.IP 1. 4
+Start the EC2 instance if stopped (waiting out
+.BR stopping ),
+then wait for
+.B instance\-running
+and
+.BR instance\-status\-ok .
+.IP 2. 4
+Read this start's public IPv4 from the EC2 API (the instance has no Elastic
+IP). If Route 53 does not already hold it, wait for the instance's own
+updater, then publish it from here with
+.BR update-notify-dns.sh (1)
+unless
+.BR MU2EDAQ_NOTIFY_DNS_LOCAL_FALLBACK=0 .
+A stale local resolver answer is only a warning.
+.IP 3. 4
+Wait for SSH to the instance.
+.IP 4. 4
+.B systemctl start caddy
+on the instance and require it to be active.
+.IP 5. 4
+Start the reverse tunnel
+.RB ( "ssh \-N \-R" ,
+.BR ExitOnForwardFailure=yes ,
+30 s keepalives) under
+.BR nohup (1)
+unless one is already bound on the instance.
+.IP 6. 4
+Start the local server with
+.BR start-mu2edaq-notify-server.sh (1)
+unless
+.B LOCAL_HEALTH_URL
+already answers 200, then wait up to 40 s for health.
+.IP 7. 4
+From the instance, fetch
+.B /api/health
+through the tunnel.
+.IP 8. 4
+Wait up to 40 s for the public
+.B /api/health
+to answer.
+.PP
+Neither the tunnel nor a server started in step 6 is supervised. If the
+server had been running under its launchd agent and was stopped by
+.BR stop-mu2edaq-notify-chain.sh (1),
+this script does not re\-load the agent.
+.SH OPTIONS
+None; everything is set by environment variables.
+.SH FILES
+.TP
+.I scripts/notify-proxy-common.sh
+Shared defaults: instance id, region, DNS name, Route 53 zone, TTL, wait
+counts.
+.TP
+.I data/mu2edaq-notify-proxy.pem
+SSH key for the instance (default; forced to mode 600).
+.TP
+.IR data/mu2edaq-notify-proxy-tunnel.pid ", " data/mu2edaq-notify-proxy-tunnel.log
+Tunnel pid and log.
+.SH ENVIRONMENT
+.TP
+.BR MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID ", " MU2EDAQ_NOTIFY_PROXY_REGION ", " MU2EDAQ_NOTIFY_PROXY_DNS_NAME ", " MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID
+Which instance, region, public name and hosted zone; defaults in
+.IR scripts/notify-proxy-common.sh .
+.TP
+.B MU2EDAQ_NOTIFY_PROXY_HOST
+Address to use when the EC2 API reports none.
+.TP
+.BR MU2EDAQ_NOTIFY_PROXY_USER ", " MU2EDAQ_NOTIFY_PROXY_KEY
+SSH user (default
+.BR ec2\-user )
+and key file.
+.TP
+.BR MU2EDAQ_NOTIFY_PROXY_REMOTE_BIND ", " MU2EDAQ_NOTIFY_PROXY_LOCAL_TARGET
+Tunnel ends (defaults
+.B 127.0.0.1:18095
+on the instance,
+.B 127.0.0.1:8095
+locally).
+.TP
+.BR MU2EDAQ_NOTIFY_PROXY_PIDFILE ", " MU2EDAQ_NOTIFY_PROXY_LOGFILE
+Tunnel pid and log paths.
+.TP
+.B MU2EDAQ_NOTIFY_PUBLIC_URL
+Public base URL; step 8 checks it with
+.B /api/health
+appended (default
+.BR https://$MU2EDAQ_NOTIFY_PROXY_DNS_NAME ).
+.TP
+.B MU2EDAQ_NOTIFY_LOCAL_HEALTH_URL
+Full local health URL checked in step 6 (default
+.BR https://127.0.0.1:8095/api/health ,
+fetched without certificate verification).
+.TP
+.B MU2EDAQ_NOTIFY_DNS_LOCAL_FALLBACK
+0 disables publishing the A record from this host in step 2.
+.TP
+.B MU2EDAQ_NOTIFY_SSH_WAIT_TRIES
+SSH attempts, 5 s apart (default 36).
+.TP
+.B MU2EDAQ_NOTIFY_DEBUG
+1 enables
+.BR "set \-x" .
+.SH "EXIT STATUS"
+0 when the public endpoint answers. 1 on the first failed check, after
+printing local and remote diagnostics to stderr. An
+.B aws
+command that fails outside a check (for example an
+.B aws ec2 wait
+timeout in step 1) ends the script with that command's own status under
+.BR "set \-e" .
+.SH EXAMPLES
+.nf
+scripts/start\-mu2edaq\-notify\-chain.sh
+scripts/status\-mu2edaq\-notify\-proxy.sh
+.fi
+.SH SEE ALSO
+.BR stop-mu2edaq-notify-chain.sh (1),
+.BR start-mu2edaq-notify-proxy.sh (1),
+.BR status-mu2edaq-notify-proxy.sh (1),
+.BR restore-mu2edaq-notify-tunnel.sh (1),
+.BR update-notify-dns.sh (1)
+.PP
+.IR docs/application-chain.md ,
+.I docs/reverse-proxy-operations.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

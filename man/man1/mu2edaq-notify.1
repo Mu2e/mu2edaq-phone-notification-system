@@ -1,0 +1,171 @@
+.TH MU2EDAQ-NOTIFY 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+mu2edaq-notify \- publish an event to the Mu2e DAQ notification server
+.SH SYNOPSIS
+.B mu2edaq-notify
+[\fB\-\-server\fR \fIURL\fR] [\fB\-\-fallback\-server\fR \fIURL\fR]
+[\fB\-\-token\fR \fITOKEN\fR] [\fB\-\-no\-discover\fR]
+.B send
+[\fB\-\-severity\fR \fILEVEL\fR] [\fB\-\-source\fR \fINAME\fR]
+[\fB\-\-category\fR \fINAME\fR] [\fB\-\-meta\fR \fIKEY\fB=\fIVALUE\fR]...
+.I TITLE
+.RI [ MESSAGE ]
+.br
+.B mu2edaq-notify
+[\fB\-\-server\fR \fIURL\fR] [\fB\-\-fallback\-server\fR \fIURL\fR]
+[\fB\-\-no\-discover\fR]
+.B ping
+.SH DESCRIPTION
+Command\-line publisher and health probe for
+.BR mu2edaq-notify-server (1),
+built on the
+.BR mu2edaq_notify (3)
+Python library.
+.PP
+.B send
+publishes one event with
+.BR "POST /api/events" .
+.B ping
+fetches
+.B GET /api/health
+and prints the JSON reply; it sends no token.
+.PP
+Two addresses are resolved, each in the order option > environment >
+discovery: the primary
+.RB ( \-\-server ,
+.BR $MU2EDAQ_NOTIFY_URL ,
+then the host/port/scheme of a mu2edaq\-discovery ANNOUNCE for
+.BR app=notify )
+and the fallback
+.RB ( \-\-fallback\-server ,
+.BR $MU2EDAQ_NOTIFY_FALLBACK_URL ,
+then that ANNOUNCE's
+.BR meta.fallback_url ).
+Discovery runs only when
+.B mu2edaq_discovery
+is importable and
+.B \-\-no\-discover
+is not given. The fallback is tried only when the primary cannot be reached
+at the network level (DNS, connection, timeout, TLS); any HTTP reply,
+including 4xx and 5xx, ends the attempt.
+.PP
+HTTPS certificates are verified (against the
+.B certifi
+bundle when installed, else the system store) and there is no option to
+disable verification, so the URL must name a host the server certificate
+covers: a server whose certificate is for its public name rejects
+.BR https://localhost:8095 .
+.PP
+The bearer token is sent to whichever address is used, including an address
+learned from discovery. Discovery replies are unauthenticated; pass
+.B \-\-server
+explicitly when the token matters.
+.SH OPTIONS
+.TP
+.BI \-\-server " URL"
+Primary server base URL, e.g.
+.BR https://mu2edaq-pager.fnal.gov .
+.TP
+.BI \-\-fallback\-server " URL"
+Address to try when the primary is unreachable.
+.TP
+.BI \-\-token " TOKEN"
+Publisher API bearer token. Default
+.BR $MU2EDAQ_NOTIFY_TOKEN .
+Without one no Authorization header is sent, which the server accepts only
+when it has no tokens configured.
+.TP
+.B \-\-no\-discover
+Do not query mu2edaq\-discovery.
+.TP
+.BI \-\-severity " LEVEL"
+.BR debug ,
+.BR info ,
+.B warning
+(default),
+.BR error ,
+or
+.BR critical .
+Any other value is a usage error.
+.TP
+.BI \-\-source " NAME"
+Publishing application name (default
+.BR cli ).
+Filter rules match on it.
+.TP
+.BI \-\-category " NAME"
+Subsystem tag, e.g. Trigger or Tracker. Default
+.BR $MU2EDAQ_NOTIFY_CATEGORY ,
+else none. Freeform: the server's
+.B GET /api/categories
+lists the configured set, but any value is accepted.
+.TP
+.BI \-\-meta " KEY" = VALUE
+Attach a metadata pair; repeatable. An argument without
+.B =
+becomes a key with an empty value.
+.TP
+.I TITLE
+Short title, shown as the push banner (truncated to 200 characters).
+.TP
+.I MESSAGE
+Detail body (truncated to 4000 characters). If
+.I TITLE
+and
+.I MESSAGE
+are both empty the command fails with a Python
+.BR ValueError .
+.SH ENVIRONMENT
+.TP
+.B MU2EDAQ_NOTIFY_URL
+Primary server URL.
+.TP
+.B MU2EDAQ_NOTIFY_FALLBACK_URL
+Fallback server URL.
+.TP
+.B MU2EDAQ_NOTIFY_TOKEN
+Publisher bearer token.
+.TP
+.B MU2EDAQ_NOTIFY_CATEGORY
+Default category for
+.BR send .
+.SH "EXIT STATUS"
+.TP
+.B 0
+Event accepted (2xx), or health check answered.
+.TP
+.B 1
+Event rejected or no server reachable; for
+.BR ping ,
+no configured or discovered server answered.
+.TP
+.B 2
+Usage error, or no subcommand given.
+.SH EXAMPLES
+Publish an error with an explicit server and token:
+.PP
+.RS
+.nf
+mu2edaq\-notify \-\-server https://mu2edaq\-pager.fnal.gov \e
+    \-\-token "$MU2EDAQ_NOTIFY_TOKEN" send \-\-severity error \e
+    \-\-source dtc\-monitor \-\-category Trigger \e
+    \-\-meta run=107001 "DTC link down" "ROC link 3 lost lock"
+.fi
+.RE
+.PP
+Find the server by discovery and check it:
+.PP
+.RS
+.nf
+mu2edaq\-notify ping
+.fi
+.RE
+.SH SEE ALSO
+.BR mu2edaq-notify-server (1),
+.BR mu2edaq_notify (3),
+.BR mu2edaq_notify_cpp (3)
+.PP
+.I docs/INTERFACES.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

@@ -1,0 +1,72 @@
+.TH START-MU2EDAQ-NOTIFY-SERVER.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+start-mu2edaq-notify-server.sh \- start the notification server in the background
+.SH SYNOPSIS
+.B ./start-mu2edaq-notify-server.sh
+.RI [ server-option ...]
+.SH DESCRIPTION
+Changes to the repository root, runs
+.BR bootstrap.sh (1)
+if
+.I venv/bin/mu2edaq-notify-server
+is missing, and exits 0 without doing anything if the pid in
+.I data/notify-server.pid
+is alive. Otherwise it starts
+.B mu2edaq\-notify\-server \-\-config
+.I CONFIG
+under
+.BR nohup (1),
+appending output to
+.IR data/notify-server.log ,
+records the pid, waits one second, and reports whether the process is still
+alive.
+.PP
+This is not a supervisor: nothing restarts the server if it exits later.
+On the current production host the server is run instead by a per\-user
+launchd agent,
+.BR org.mu2edaq.notify-server ,
+whose plist is not kept in this repository; see
+.IR docs/OPERATIONS.md .
+.SH OPTIONS
+Every argument is passed to
+.BR mu2edaq-notify-server (1)
+after
+.BR \-\-config ,
+so it overrides the configuration file.
+.SH FILES
+.TP
+.I data/notify-server.pid
+Pid of the background server.
+.TP
+.I data/notify-server.log
+Server stdout and stderr, appended.
+.TP
+.I config/notify-server.yaml
+Default configuration.
+.SH ENVIRONMENT
+.TP
+.B MU2EDAQ_NOTIFY_CONFIG
+Configuration file (default
+.IR config/notify-server.yaml ).
+.PP
+All other
+.B MU2EDAQ_NOTIFY_*
+variables reach the server; see
+.BR mu2edaq-notify-server (1).
+.SH "EXIT STATUS"
+0 when the server is running after one second, or was already running.
+1 when it exited within that second; the last 20 log lines are printed to
+stderr and the pid file is removed. A server that dies later is not detected.
+.SH EXAMPLES
+.nf
+\&./start\-mu2edaq\-notify\-server.sh
+\&./start\-mu2edaq\-notify\-server.sh \-\-no\-tls \-\-port 9000
+tail \-f data/notify\-server.log
+.fi
+.SH SEE ALSO
+.BR stop-mu2edaq-notify-server.sh (1),
+.BR mu2edaq-notify-server (1),
+.BR start-mu2edaq-notify-chain.sh (1)
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

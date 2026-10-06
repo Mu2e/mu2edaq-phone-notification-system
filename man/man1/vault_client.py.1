@@ -1,4 +1,4 @@
-.TH VAULT-CLIENT 1 "2026-08-19" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.TH VAULT_CLIENT.PY 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
 .SH NAME
 vault_client.py \- fetch mu2edaq-pager secrets from HashiCorp Vault
 .SH SYNOPSIS
@@ -109,7 +109,7 @@ so the token stays in your own home directory.
 .B \-\-approle
 Authenticate as the application rather than as a person: mint a short-lived
 AppRole token by invoking
-.BR get\-vault\-apptoken (1)
+.BR get\-vault\-apptoken.sh (1)
 instead of reading
 .IR ~/.vault\-token .
 Intended for CI and unattended deploys. Off by default.
@@ -137,7 +137,7 @@ This role does not exist yet; when it does, it must carry a policy
 granting read on
 .IR okd/data/shared/{prod,test}/mu2edaq\-pager/* ;
 see
-.BR get\-vault\-apptoken (1).
+.BR get\-vault\-apptoken.sh (1).
 .TP
 .BI \-\-config " FILE"
 Path to the YAML config file supplying connection defaults.
@@ -147,6 +147,28 @@ Default:
 .TP
 .BR \-h ", " \-\-help
 Show usage and exit.
+.SH FILES
+.TP
+.B config/vault.yaml
+Non-secret connection defaults (address, base path, KV mount). Committed to
+git.
+.TP
+.B ~/.vault-token
+Cached token written by
+.BR "vault login" .
+Read, never written, by this script.
+.SH ENVIRONMENT
+.BR VAULT_ADDR ,
+.BR VAULT_ENV ,
+.BR VAULT_KV_MOUNT ,
+.BR VAULT_BASE_PATH ,
+.BR VAULT_TOKEN ,
+.BR MU2EDAQ_PAGER_VAULT_APPROLE ,
+.BR MU2EDAQ_PAGER_VAULT_ROLE ;
+each is described with the option it backs. Precedence: command line >
+environment >
+.I config/vault.yaml
+> built\-in defaults.
 .SH EXIT STATUS
 .TP
 .B 0
@@ -183,20 +205,11 @@ mount \(en note this is relative to the mount point, so it does NOT repeat
 .RS
 .B python3 scripts/vault_client.py env \-\-base\-path shared/dev/mu2edaq-pager
 .RE
-.SH FILES
-.TP
-.B config/vault.yaml
-Non-secret connection defaults (address, base path, KV mount). Committed to
-git.
-.TP
-.B ~/.vault-token
-Cached token written by
-.BR "vault login" .
-Read, never written, by this script.
 .SH SEE ALSO
-.BR deploy\-okd\-proxy (1),
-.BR get\-vault\-apptoken (1),
+.BR deploy-okd-proxy.sh (1),
+.BR get-vault-apptoken.sh (1),
 .B docs/Vault-Secrets.md ,
 .B docs/okd-proxy-setup.md
-.SH AUTHORS
-mu2edaq-pager project contributors.
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

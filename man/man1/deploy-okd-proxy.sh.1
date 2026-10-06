@@ -1,4 +1,4 @@
-.TH DEPLOY-OKD-PROXY 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.TH DEPLOY-OKD-PROXY.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
 .SH NAME
 deploy-okd-proxy.sh \- deploy the mu2edaq-pager OKD reverse proxy
 .SH SYNOPSIS
@@ -119,6 +119,51 @@ AppRole role name to use with
 .TP
 .BR \-h ", " \-\-help
 Show usage and exit.
+.SH FILES
+.TP
+.B helm/
+The mu2edaq-pager Helm chart.
+.TP
+.B my-values.yaml
+Gitignored real deployment values (hostname, backend.url, cert-manager settings).
+.TP
+.B config/vault.yaml
+Vault connection defaults.
+.SH ENVIRONMENT
+.TP
+.B MU2EDAQ_PAGER_VAULT_ROLE
+Default for
+.BR \-\-vault\-role .
+.TP
+.BR VAULT_ADDR ", " VAULT_TOKEN ", " VAULT_KV_MOUNT ", " VAULT_BASE_PATH
+Passed through to
+.BR vault_client.py (1);
+with
+.B \-\-vault\-approle
+the script exports
+.B VAULT_TOKEN
+itself and, when the
+.B vault
+CLI is on
+.BR PATH ,
+revokes that token on exit (otherwise it lapses at its TTL).
+.SH "EXIT STATUS"
+0 when the release is applied and the rollout is ready (a failing public
+health check after that is only a warning), and also after
+.BR \-h .
+Non\-zero on any failure: 1 for a missing prerequisite or values file, a
+Vault fetch error, or a certificate or build timeout; the failing command's
+own status for a Helm or
+.B oc rollout
+error under
+.BR "set \-e" .
+An unrecognized option prints an error and the usage text and then exits
+.BR 0 ,
+because the usage function exits 0; do not rely on the exit status to catch
+a mistyped option. The Vault\-rendered values file is a
+mode\-600
+.BR mktemp (1)
+file removed by an EXIT trap on every path.
 .SH EXAMPLES
 First deploy, issuing a fresh cert-manager certificate:
 .PP
@@ -137,19 +182,12 @@ Deploy without any Vault call at all:
 .RS
 .B ./scripts/deploy-okd-proxy.sh --skip-vault
 .RE
-.SH FILES
-.TP
-.B helm/
-The mu2edaq-pager Helm chart.
-.TP
-.B my-values.yaml
-Gitignored real deployment values (hostname, backend.url, cert-manager settings).
-.TP
-.B config/vault.yaml
-Vault connection defaults.
 .SH SEE ALSO
-.BR vault\-client (1),
-.BR get\-vault\-apptoken (1),
+.BR vault_client.py (1),
+.BR get-vault-apptoken.sh (1),
 .B docs/okd-proxy-setup.md ,
 .B docs/okd-proxy-operations.md ,
 .B docs/Vault-Secrets.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

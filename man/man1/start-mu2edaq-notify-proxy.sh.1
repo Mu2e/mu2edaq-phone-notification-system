@@ -1,0 +1,70 @@
+.TH START-MU2EDAQ-NOTIFY-PROXY.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+start-mu2edaq-notify-proxy.sh \- start the reverse tunnel and Caddy for an already running EC2 proxy
+.SH SYNOPSIS
+.B scripts/start\-mu2edaq\-notify\-proxy.sh
+.SH DESCRIPTION
+The lighter sibling of
+.BR start-mu2edaq-notify-chain.sh (1):
+it does not start the EC2 instance or touch DNS. It resolves the instance's
+current address (EC2 API, else the public name), then:
+.IP \(bu 2
+starts the local server with
+.BR start-mu2edaq-notify-server.sh (1)
+unless its health URL already answers (skipped with
+.BR MU2EDAQ_NOTIFY_SKIP_SERVER=1 );
+.IP \(bu 2
+exits 0 at once if the public health URL already answers;
+.IP \(bu 2
+otherwise runs
+.B sudo systemctl start caddy
+on the instance (skipped with
+.BR MU2EDAQ_NOTIFY_SKIP_REMOTE_CADDY=1 ),
+and exits 0 if the public URL now answers;
+.IP \(bu 2
+otherwise starts the
+.B ssh \-N \-R
+reverse tunnel under
+.BR nohup (1)
+unless its pid file is live, and checks the public health URL once.
+.SH OPTIONS
+None; everything is set by environment variables.
+.SH FILES
+.TP
+.I data/mu2edaq-notify-proxy.pem
+SSH key (default; forced to mode 600).
+.TP
+.IR data/mu2edaq-notify-proxy-tunnel.pid ", " data/mu2edaq-notify-proxy-tunnel.log
+Tunnel pid and log.
+.SH ENVIRONMENT
+.BR MU2EDAQ_NOTIFY_SKIP_SERVER ,
+.BR MU2EDAQ_NOTIFY_SKIP_REMOTE_CADDY ,
+.BR MU2EDAQ_NOTIFY_PUBLIC_URL ,
+.BR MU2EDAQ_NOTIFY_LOCAL_HEALTH_URL ,
+.BR MU2EDAQ_NOTIFY_PROXY_USER ,
+.BR MU2EDAQ_NOTIFY_PROXY_KEY ,
+.BR MU2EDAQ_NOTIFY_PROXY_REMOTE_BIND ,
+.BR MU2EDAQ_NOTIFY_PROXY_LOCAL_TARGET ,
+.BR MU2EDAQ_NOTIFY_PROXY_PIDFILE ,
+.BR MU2EDAQ_NOTIFY_PROXY_LOGFILE ,
+and the shared defaults in
+.IR scripts/notify-proxy-common.sh ;
+see
+.BR start-mu2edaq-notify-chain.sh (1).
+.SH "EXIT STATUS"
+0 when the public health URL answers. 1 when the instance has no address,
+the SSH key is missing, or the tunnel exits immediately; non\-zero from
+.B curl
+when the final public check fails.
+.SH EXAMPLES
+.nf
+MU2EDAQ_NOTIFY_SKIP_SERVER=1 scripts/start\-mu2edaq\-notify\-proxy.sh
+.fi
+.SH SEE ALSO
+.BR stop-mu2edaq-notify-proxy.sh (1),
+.BR status-mu2edaq-notify-proxy.sh (1),
+.BR start-mu2edaq-notify-chain.sh (1),
+.BR restore-mu2edaq-notify-tunnel.sh (1)
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

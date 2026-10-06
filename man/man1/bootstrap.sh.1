@@ -1,0 +1,66 @@
+.TH BOOTSTRAP.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+bootstrap.sh \- create or update the notification system's Python virtual environment
+.SH SYNOPSIS
+.B ./bootstrap.sh
+.SH DESCRIPTION
+Run from any directory; the script changes to the repository root first.
+It creates
+.I venv/
+with
+.B $PYTHON
+when absent, upgrades
+.BR pip ,
+installs
+.I requirements.txt
+(runtime dependencies plus Authlib, pyzmq and pytest), installs this package
+in editable mode, and, when a sibling checkout
+.I ../mu2edaq-discovery
+exists, installs that in editable mode too so the server can announce itself.
+It finally creates
+.I data/
+and
+.IR core/ .
+Safe to re\-run. A re\-run installs anything missing but does not upgrade a
+package that already satisfies its specifier: only
+.B pip
+itself is installed with
+.BR \-\-upgrade .
+.PP
+Linux and macOS only. On Windows 11 create the environment by hand with
+.B py \-m venv venv
+and
+.BR "venv\eScripts\epip install \-r requirements.txt \-e ." .
+.SH OPTIONS
+None.
+.SH FILES
+.TP
+.I requirements.txt
+Dependencies installed into the environment.
+.TP
+.I venv/
+The virtual environment (gitignored).
+.SH ENVIRONMENT
+.TP
+.B PYTHON
+Interpreter used to create
+.I venv/
+(default
+.BR python3 ;
+3.9 or newer).
+.SH "EXIT STATUS"
+0 on success; non\-zero, from the failing command, when venv creation or any
+.B pip
+step fails
+.RB ( "set \-euo pipefail" ).
+.SH EXAMPLES
+.nf
+PYTHON=python3.9 ./bootstrap.sh
+venv/bin/pytest \-q
+.fi
+.SH SEE ALSO
+.BR start-mu2edaq-notify-server.sh (1),
+.BR mu2edaq-notify-server (1)
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

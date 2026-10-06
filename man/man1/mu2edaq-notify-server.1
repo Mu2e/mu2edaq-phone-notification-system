@@ -1,0 +1,329 @@
+.TH MU2EDAQ-NOTIFY-SERVER 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+mu2edaq-notify-server \- Mu2e DAQ notification server
+.SH SYNOPSIS
+.B mu2edaq-notify-server
+[\fB\-\-config\fR \fIFILE\fR] [\fB\-\-host\fR \fIADDR\fR] [\fB\-\-port\fR \fIPORT\fR]
+[\fB\-\-db\-url\fR \fIURL\fR] [\fB\-\-base\-url\fR \fIURL\fR]
+[\fB\-\-dynamic\-base\-url\fR | \fB\-\-no\-dynamic\-base\-url\fR]
+[\fB\-\-trusted\-host\fR \fIHOST\fR]...
+[\fB\-\-tls\fR | \fB\-\-no\-tls\fR] [\fB\-\-tls\-cert\fR \fIFILE\fR]
+[\fB\-\-tls\-key\fR \fIFILE\fR] [\fB\-\-tls\-adhoc\fR]
+[\fB\-\-api\-token\fR \fITOKEN\fR]... [\fB\-\-zmq\fR | \fB\-\-no\-zmq\fR]
+[\fB\-\-no\-discovery\fR] [\fB\-\-debug\fR] [\fB\-\-version\fR]
+.SH DESCRIPTION
+Receives error and warning events from Mu2e DAQ applications, stores them,
+matches them against filter rules held in the database, and delivers them to
+registered iPhones (Apple Push Notification service), Slack and Discord
+incoming webhooks, and a live Server\-Sent Events web dashboard.
+.PP
+Two ingest paths share one normalizer
+.RB ( normalize_event ()
+in
+.IR src/mu2edaq_notify/events.py ):
+the HTTP API
+.RB ( "POST /api/events" ,
+bearer\-token authenticated), and an optional ZeroMQ compatibility listener
+(PULL bound at
+.BR zmq.bind ,
+default
+.BR tcp://0.0.0.0:8096 ,
+plus SUB sockets connected to each
+.B zmq.connect
+endpoint). Both paths read only the notify event keys
+.RB ( source ,
+.BR host ,
+.BR severity ,
+.BR category ,
+.BR title ,
+.BR message ,
+.BR timestamp ,
+.BR meta ).
+A JSON payload in the
+.B mu2edaq\-dashboard
+schema
+.RB ( error_level ,
+.BR subsystem ,
+.BR event_category )
+is accepted on the ZeroMQ listener but none of those keys is read, so every
+such message arrives with severity
+.B zmq.default_severity
+(\fBwarning\fR), source
+.BR zmq ,
+and no category, whatever its level. Under the shipped
+.B errors\-to\-phones
+rule
+.RB ( "min_severity: error" )
+a dashboard
+.B error
+therefore pages nobody. See
+.I docs/INTERFACES.md
+section 3.
+.PP
+Delivery runs on one daemon thread that drains an unbounded queue and calls
+each matched destination in turn with a 10 s HTTP timeout and no retry; every
+attempt is recorded in the
+.B deliveries
+table as
+.BR sent ,
+.BR logged ,
+.B failed
+or
+.BR suppressed .
+.PP
+The server announces itself with the mu2edaq\-discovery protocol
+.RB ( app=notify )
+when the
+.B mu2edaq_discovery
+package is importable and
+.B discovery.enabled
+is true. The ANNOUNCE carries this host's own address
+.RB ( discovery.host / port / scheme ,
+empty by default meaning this machine's FQDN, the server port, and
+http or https to match TLS) and, in
+.BR meta.fallback_url ,
+the public reverse\-proxy URL publishers should try only when the local
+address is unreachable.
+.SH OPTIONS
+Every option overrides the matching configuration key. A list\-valued option
+.RB ( \-\-api\-token ,
+.BR \-\-trusted\-host )
+.B replaces
+the list from the configuration file; tokens read from
+.B auth.api_tokens_file
+are then appended to it.
+.TP
+.BI \-\-config " FILE"
+YAML configuration file. Default:
+.BR $MU2EDAQ_NOTIFY_CONFIG .
+There is no built\-in default path: with neither set, the server runs on
+built\-in defaults only. A path that does not exist is
+.B silently ignored
+and the built\-in defaults are used, which include no publisher tokens.
+.TP
+.BI \-\-host " ADDR"
+Bind address
+.RB ( server.host ,
+default 0.0.0.0).
+.TP
+.BI \-\-port " PORT"
+Bind port
+.RB ( server.port ,
+default 8095).
+.TP
+.BI \-\-db\-url " URL"
+SQLAlchemy database URL
+.RB ( database.url ,
+default
+.BR sqlite:///data/notify.db ,
+relative to the working directory). Use
+.B postgresql+psycopg2://
+for Postgres; the
+.B postgres
+extra provides the driver. The URL is written to the startup log line
+verbatim, password included.
+.TP
+.BI \-\-base\-url " URL"
+Fallback public base URL for enrollment QR codes and auto\-configuration
+payloads
+.RB ( server.base_url ).
+With dynamic resolution on it is used only when the request host is malformed
+or, with an allowlist set, not on it.
+.TP
+.BR \-\-dynamic\-base\-url ", " \-\-no\-dynamic\-base\-url
+Derive the enrollment URL from each request (leftmost
+.BR X\-Forwarded\-Host / X\-Forwarded\-Proto ,
+else the request's own
+.B Host
+and scheme), or always use
+.BR \-\-base\-url .
+Default on
+.RB ( server.dynamic_base_url ).
+.TP
+.BI \-\-trusted\-host " HOST"
+Restrict dynamic resolution to this hostname or
+.B *.suffix
+pattern; repeatable
+.RB ( server.trusted_hosts ).
+The request host is always checked against the hostname grammar; with no
+allowlist any well\-formed host is accepted.
+.TP
+.BR \-\-tls ", " \-\-no\-tls
+Serve HTTPS from the built\-in server using
+.BR server.tls ,
+or plain HTTP
+.RB ( server.tls.enabled ,
+default false). iOS App Transport Security requires HTTPS for enrollment, so
+either this or a TLS\-terminating proxy is needed for phones.
+.TP
+\fB\-\-tls\-cert\fR \fIFILE\fR, \fB\-\-tls\-key\fR \fIFILE\fR
+Certificate chain and private key
+.RB ( server.tls.cert_file ,
+.BR server.tls.key_file ).
+Both are required when TLS is on without
+.BR \-\-tls\-adhoc ;
+the server refuses to start if either is unset or missing.
+.TP
+.B \-\-tls\-adhoc
+HTTPS with a throwaway self\-signed certificate; implies
+.BR \-\-tls .
+Development only.
+.TP
+.BI \-\-api\-token " TOKEN"
+Publisher bearer token; repeatable
+.RB ( auth.api_tokens ).
+When no token is configured from any source,
+.B POST /api/events
+accepts anonymous publishes and the server logs one warning at startup.
+Read endpoints
+.RB ( "GET /api/events" ,
+.BR "GET /api/stream" )
+are open to requests that send
+.B no
+Authorization header whenever
+.B auth.oidc.enabled
+is false, whether or not tokens are configured.
+.TP
+.BR \-\-zmq ", " \-\-no\-zmq
+Enable or disable the ZeroMQ compatibility listener
+.RB ( zmq.enabled ,
+default false). Requires
+.BR pyzmq ;
+without it the listener logs one warning and exits while the HTTP server
+keeps running.
+.TP
+.B \-\-no\-discovery
+Do not announce via mu2edaq\-discovery
+.RB ( discovery.enabled ).
+.TP
+.B \-\-debug
+Flask debug mode, which enables the interactive Werkzeug debugger. Never use
+it on an address reachable by anyone else.
+.TP
+.B \-\-version
+Print the version and exit.
+.SH FILES
+.TP
+.I config/notify-server.yaml
+Shipped configuration, used by
+.BR start-mu2edaq-notify-server.sh (1).
+It enables TLS with site\-specific certificate paths and APNs with a specific
+key identity; adapt it before use on another host.
+.TP
+.I config/apns_key.p8
+APNs ES256 provider key (path from
+.BR apns.key_file ,
+relative to the working directory). Not committed. If it cannot be read the
+APNs sender drops to log\-only mode for the life of the process; the only
+signals are one ERROR log line and deliveries recorded as
+.BR logged .
+.TP
+.I auth.api_tokens
+One publisher token per line, lines starting with # ignored (path from
+.BR auth.api_tokens_file ).
+Not committed. A missing file is silently skipped.
+.TP
+.I data/notify.db
+SQLite database (default
+.BR database.url ).
+.TP
+.IR data/notify-server.log ", " data/notify-server.pid
+Log and pid file written by
+.BR start-mu2edaq-notify-server.sh (1).
+.SH ENVIRONMENT
+Each variable overrides one configuration key; values are parsed as YAML, so
+.BR true ,
+.B 8095
+and
+.B [a, b]
+are typed. A scalar value given for a list\-valued key is
+.B appended
+to the list (so
+.B MU2EDAQ_NOTIFY_API_TOKEN=x
+adds one token); a YAML list replaces it.
+.PP
+.BR MU2EDAQ_NOTIFY_CONFIG ,
+.BR MU2EDAQ_NOTIFY_HOST ,
+.BR MU2EDAQ_NOTIFY_PORT ,
+.BR MU2EDAQ_NOTIFY_BASE_URL ,
+.BR MU2EDAQ_NOTIFY_DYNAMIC_BASE_URL ,
+.BR MU2EDAQ_NOTIFY_TRUSTED_HOSTS ,
+.BR MU2EDAQ_NOTIFY_TLS_ENABLED ,
+.BR MU2EDAQ_NOTIFY_TLS_CERT_FILE ,
+.BR MU2EDAQ_NOTIFY_TLS_KEY_FILE ,
+.BR MU2EDAQ_NOTIFY_TLS_ADHOC ,
+.BR MU2EDAQ_NOTIFY_DB_URL ,
+.BR MU2EDAQ_NOTIFY_API_TOKEN ,
+.BR MU2EDAQ_NOTIFY_API_TOKENS_FILE ,
+.BR MU2EDAQ_NOTIFY_APNS_ENABLED ,
+.BR MU2EDAQ_NOTIFY_ZMQ_ENABLED ,
+.BR MU2EDAQ_NOTIFY_ZMQ_BIND ,
+.BR MU2EDAQ_NOTIFY_DISCOVERY_ENABLED ,
+.BR MU2EDAQ_NOTIFY_DISCOVERY_HOST ,
+.BR MU2EDAQ_NOTIFY_DISCOVERY_PORT ,
+.BR MU2EDAQ_NOTIFY_DISCOVERY_SCHEME ,
+.BR MU2EDAQ_NOTIFY_DISCOVERY_FALLBACK_URL ,
+.B MU2EDAQ_NOTIFY_CATEGORY
+(appends one entry to
+.BR categories ).
+.PP
+.B MU2EDAQ_NOTIFY_WEB_DIR
+overrides the directory holding
+.I templates/
+and
+.IR static/ .
+.PP
+Precedence: command line > environment > configuration file > built\-in
+defaults.
+.B server.secret_key
+and
+.B auth.enrollment_secret
+are generated randomly per process when empty and are not persisted: a
+restart signs out web sessions and invalidates outstanding enrollment codes.
+.SH "EXIT STATUS"
+0 after a clean shutdown. 1 when startup fails with an uncaught exception,
+most often the TLS check
+.RB ( "server.tls.enabled requires cert_file/key_file" ,
+or
+.BR "TLS file does not exist" ),
+or a database URL that cannot be opened. 2 on a command\-line usage error.
+.SH EXAMPLES
+Run in the foreground with the shipped configuration:
+.PP
+.RS
+.nf
+venv/bin/mu2edaq\-notify\-server \-\-config config/notify\-server.yaml
+.fi
+.RE
+.PP
+Plain HTTP behind a TLS\-terminating reverse proxy, with a publisher token,
+an enrollment\-host allowlist, and the ZeroMQ listener on:
+.PP
+.RS
+.nf
+venv/bin/mu2edaq\-notify\-server \-\-config config/notify\-server.yaml \e
+    \-\-no\-tls \-\-api\-token "$NOTIFY_TOKEN" \e
+    \-\-trusted\-host '*.fnal.gov' \-\-zmq
+.fi
+.RE
+.PP
+Check it is up:
+.PP
+.RS
+.nf
+curl \-sk https://localhost:8095/api/health
+.fi
+.RE
+.SH SEE ALSO
+.BR mu2edaq-notify (1),
+.BR start-mu2edaq-notify-server.sh (1),
+.BR stop-mu2edaq-notify-server.sh (1),
+.BR mu2edaq_notify (3),
+.BR mu2edaq_notify_cpp (3)
+.PP
+.IR docs/ARCHITECTURE.md ,
+.IR docs/INTERFACES.md ,
+.I docs/OPERATIONS.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

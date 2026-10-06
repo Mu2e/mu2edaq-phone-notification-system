@@ -1,4 +1,4 @@
-.TH RESTORE-MU2EDAQ-NOTIFY-TUNNEL 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.TH RESTORE-MU2EDAQ-NOTIFY-TUNNEL.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
 .SH NAME
 restore\-mu2edaq\-notify\-tunnel.sh \- check and rebuild the SSH reverse tunnel to the AWS proxy
 .SH SYNOPSIS
@@ -92,6 +92,9 @@ removes the limit.
 .TP
 .B \-\-timeout \fISEC\fR
 Per-ssh-command timeout. Default 8.
+.TP
+.BR \-h ", " \-\-help
+Print usage and exit 0.
 .SH WHAT IT DOES NOT DO
 It does not start the EC2 instance \(en that is
 .IR scripts/start\-mu2edaq\-notify\-chain.sh .
@@ -100,6 +103,18 @@ If the proxy has no reachable address the script says so and stops.
 It does not start the local notification server either, but it checks: a tunnel
 rebuilt over a dead server carries nothing but 502s, so that is called out
 rather than left to look like success.
+.SH FILES
+.TP
+.I data/mu2edaq-notify-proxy-tunnel.pid
+Pid of the tunnel this script (or
+.BR start-mu2edaq-notify-chain.sh (1))
+started.
+.TP
+.I data/mu2edaq-notify-proxy-tunnel.log
+Tunnel ssh output, appended.
+.TP
+.I data/mu2edaq-notify-proxy.pem
+Default SSH key for the instance.
 .SH ENVIRONMENT
 .B MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID,
 .B MU2EDAQ_NOTIFY_PROXY_DNS_NAME,
@@ -175,3 +190,6 @@ true, then
 .BR update-notify-dns.sh (1),
 .IR scripts/start\-mu2edaq\-notify\-chain.sh ,
 .IR docs/reverse\-proxy\-operations.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

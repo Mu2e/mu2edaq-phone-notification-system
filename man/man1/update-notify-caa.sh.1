@@ -1,4 +1,4 @@
-.TH UPDATE-NOTIFY-CAA 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.TH UPDATE-NOTIFY-CAA.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
 .SH NAME
 update\-notify\-caa.sh \- bind certificate issuance for the proxy's name to one CA and ACME account
 .SH SYNOPSIS
@@ -163,6 +163,14 @@ of the
 record and deliberately cannot touch
 .BR CAA ,
 so a compromised proxy cannot widen its own issuance policy.
+.SH "EXIT STATUS"
+0 when the record is correct or was updated (or after
+.BR \-h ).
+1 when
+.B \-\-check
+finds a missing or mismatched account, the
+.B aws
+CLI is absent, or a lookup or update fails. 2 on an unknown option.
 .SH EXAMPLES
 Publish the pin, reading the account off the running instance:
 .PP
@@ -195,3 +203,6 @@ scripts/update\-notify\-caa.sh \-\-remove
 .IR docs/reverse\-proxy\-setup.md
 .PP
 Let's Encrypt CAA documentation: https://letsencrypt.org/docs/caa/
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

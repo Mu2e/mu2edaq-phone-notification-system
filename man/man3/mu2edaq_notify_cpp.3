@@ -1,0 +1,159 @@
+.TH MU2EDAQ_NOTIFY_CPP 3 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+mu2edaq_notify_cpp \- C++17 publisher library for the Mu2e DAQ notification server
+.SH SYNOPSIS
+.nf
+.B #include <mu2edaq_notify/notify.hpp>
+// In\-tree CMake: add_subdirectory(), then link mu2edaq::notify.
+// Installed tree: find_package(CURL REQUIRED), then include
+//   <prefix>/lib/cmake/mu2edaq_notify/mu2edaq_notify\-targets.cmake
+// (no package Config file is installed, so find_package(mu2edaq_notify)
+// does not work). Plain link line: \-lmu2edaq_notify \-lcurl
+
+namespace mu2edaq::notify {
+struct Options {
+    std::string server_url;     // "" : $MU2EDAQ_NOTIFY_URL, then discovery
+    std::string fallback_url;   // "" : $MU2EDAQ_NOTIFY_FALLBACK_URL, then
+                                //      ANNOUNCE meta.fallback_url
+    std::string token;          // "" : $MU2EDAQ_NOTIFY_TOKEN
+    std::string source = "cpp";
+    std::string category;       // "" : $MU2EDAQ_NOTIFY_CATEGORY
+    std::string host;           // "" : gethostname()
+    long timeout_ms = 5000;
+    bool discover = true;
+};
+using Meta = std::map<std::string, std::string>;
+
+class Publisher {
+public:
+    explicit Publisher(Options opts = {});
+    bool publish(const std::string& severity, const std::string& title,
+                 const std::string& message = "", const Meta& meta = {},
+                 const std::string& category = "");
+    bool debug(t, m = "", meta = {}, cat = "");    // also info, warning,
+    bool error(t, m = "", meta = {}, cat = "");    // critical
+    const std::string& server_url() const;
+    const std::string& fallback_url() const;
+};
+
+struct DiscoveredServer { std::string primary, fallback; };
+DiscoveredServer discover_server_pair(double timeout_s = 2.0);
+std::string      discover_server(double timeout_s = 2.0);
+}
+.fi
+.SH DESCRIPTION
+Publishes one event per call to
+.B POST /api/events
+on
+.BR mu2edaq-notify-server (1)
+with libcurl. The JSON body carries
+.BR severity ,
+.BR title ,
+.BR message ,
+.BR source ,
+.BR host ,
+.B category
+and
+.BR meta ;
+all values are strings.
+.PP
+.B Address resolution
+is lazy: on the first
+.BR publish ()
+the publisher fills an empty
+.B server_url
+from
+.B $MU2EDAQ_NOTIFY_URL
+and an empty
+.B fallback_url
+from
+.BR $MU2EDAQ_NOTIFY_FALLBACK_URL ,
+then, if
+.B discover
+is true and either is still empty, sends one mu2edaq\-discovery DISCOVER
+(multicast 239.255.42.99:28999, filter
+.BR app=notify ,
+2 s timeout) and takes the first matching ANNOUNCE. That first call can
+therefore block for up to 2 s. Resolution happens once per object and is
+never retried; if nothing answered, every later
+.B publish()
+returns false without sending. The client is self\-contained and does not
+link the mu2edaq\-discovery library.
+.PP
+.B Delivery.
+.B publish()
+tries the primary, and the fallback only when libcurl reports a
+transport\-level error (DNS, connect, timeout, TLS). Any HTTP reply ends the
+attempt. It returns true on 2xx. It never throws, and it logs nothing: the
+return value is the only signal. Severity is not validated here; the server
+replaces an unknown severity with
+.BR info .
+TLS peer verification is libcurl's default (on).
+.PP
+.B Credentials.
+The bearer token is sent to whichever address is used, including one taken
+from an unauthenticated discovery reply. Set
+.B server_url
+explicitly where that matters.
+.PP
+.B Thread safety.
+.B publish()
+mutates the object on first use (lazy resolution) without a lock, and the
+constructor calls
+.BR curl_global_init (3),
+which is not thread\-safe. Construct publishers before starting threads, and
+give each thread its own publisher or call
+.B publish()
+once on the constructing thread first.
+.SH ENVIRONMENT
+.TP
+.B MU2EDAQ_NOTIFY_URL
+Primary server URL.
+.TP
+.B MU2EDAQ_NOTIFY_FALLBACK_URL
+Fallback server URL.
+.TP
+.B MU2EDAQ_NOTIFY_TOKEN
+Publisher bearer token.
+.TP
+.B MU2EDAQ_NOTIFY_CATEGORY
+Default category.
+.SH EXAMPLES
+Build and test the library (Linux, macOS, or Windows 11 with MSVC, where
+.B ws2_32
+is linked automatically):
+.PP
+.RS
+.nf
+cmake \-S . \-B build && cmake \-\-build build
+ctest \-\-test\-dir build   # CppUnit tests; silently absent without CppUnit
+.fi
+.RE
+.PP
+Publish:
+.PP
+.RS
+.nf
+mu2edaq::notify::Options o;
+o.server_url = "https://mu2edaq\-pager.fnal.gov";
+o.source = "dtc\-monitor";
+o.category = "Trigger";
+mu2edaq::notify::Publisher pub(o);
+if (!pub.error("DTC link down", "ROC link 3 lost lock",
+               {{"run", "107001"}}))
+    std::cerr << "page not accepted\en";
+.fi
+.RE
+.PP
+.I src/cpp/examples/publish_example.cpp
+is a complete program; CMake builds and installs it as
+.BR publish_example .
+.SH SEE ALSO
+.BR mu2edaq-notify (1),
+.BR mu2edaq-notify-server (1),
+.BR mu2edaq_notify (3)
+.PP
+.I docs/INTERFACES.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

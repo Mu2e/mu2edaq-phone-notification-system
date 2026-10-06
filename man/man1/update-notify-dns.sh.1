@@ -1,9 +1,10 @@
-.TH UPDATE-NOTIFY-DNS 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.TH UPDATE-NOTIFY-DNS.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
 .SH NAME
 update\-notify\-dns.sh \- inspect or repair the proxy's public A record from the operator's host
 .SH SYNOPSIS
 .B ./scripts/update\-notify\-dns.sh
 [\fB\-\-check\fR]
+[\fB\-\-retract\fR [\fB\-\-sink\fR \fIADDRESS\fR]]
 [\fB\-i\fR \fIADDRESS\fR]
 [\fB\-\-instance\fR \fIID\fR]
 [\fB\-z\fR \fIZONE_ID\fR]
@@ -11,6 +12,8 @@ update\-notify\-dns.sh \- inspect or repair the proxy's public A record from the
 [\fB\-t\fR \fISECONDS\fR]
 [\fB\-\-no\-wait\fR]
 [\fB\-n\fR]
+.br
+.B ./scripts/update\-notify\-dns.sh \-h
 .SH DESCRIPTION
 Prints the proxy instance's state, the public IPv4 the EC2 API reports for it,
 the value of the
@@ -34,6 +37,23 @@ overrides it. Nothing is written when the record is already correct.
 .B \-\-check
 Report only, change nothing. Exits 1 if the record is stale, which makes it
 usable as a monitoring probe.
+.TP
+.B \-\-retract
+Upsert the record to the unroutable sink address instead of the instance's
+address, for when the instance is stopping and its auto\-assigned public IPv4
+is about to be released. A record left on a released address is a dangling
+record that the address's next holder could use to obtain a certificate for
+the name.
+.BR stop-mu2edaq-notify-chain.sh (1)
+calls this. An UPSERT, not a DELETE, so the name keeps resolving.
+.TP
+.BI \-\-sink " ADDRESS"
+Address
+.B \-\-retract
+parks the record on. Default
+.B 192.0.2.1
+(RFC 5737 TEST\-NET\-1), or
+.BR $MU2EDAQ_NOTIFY_DNS_SINK .
 .TP
 .BR \-i ", " \-\-ip " " \fIADDRESS\fR
 Publish this address instead of asking the API.
@@ -59,12 +79,22 @@ Do not poll the change to
 .TP
 .BR \-n ", " \-\-dry\-run
 Print the change batch, submit nothing.
+.TP
+.BR \-h ", " \-\-help
+Print usage and exit 0.
 .SH ENVIRONMENT
 .B MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID,
 .B MU2EDAQ_NOTIFY_PROXY_REGION,
 .B MU2EDAQ_NOTIFY_PROXY_DNS_NAME,
 .B MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID,
-.B MU2EDAQ_NOTIFY_DNS_TTL.
+.B MU2EDAQ_NOTIFY_DNS_TTL,
+.B MU2EDAQ_NOTIFY_DNS_SINK
+(default for
+.BR \-\-sink ,
+itself defaulting to
+.B 192.0.2.1
+in the script). Defaults for the other five are set in
+.IR scripts/notify-proxy-common.sh .
 .SH EXIT STATUS
 .TP
 .B 0
@@ -96,4 +126,8 @@ scripts/update\-notify\-dns.sh
 .SH SEE ALSO
 .BR mu2edaq-notify-dns-update (1),
 .BR install-notify-dns-updater.sh (1),
-.BR update-notify-caa.sh (1)
+.BR update-notify-caa.sh (1),
+.BR stop-mu2edaq-notify-chain.sh (1)
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

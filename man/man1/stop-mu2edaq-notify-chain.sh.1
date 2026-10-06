@@ -1,0 +1,79 @@
+.TH STOP-MU2EDAQ-NOTIFY-CHAIN.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+stop-mu2edaq-notify-chain.sh \- stop the local server, reverse tunnel, EC2 Caddy and EC2 proxy instance
+.SH SYNOPSIS
+.B scripts/stop\-mu2edaq\-notify\-chain.sh
+.SH DESCRIPTION
+Tears the chain down in five logged steps:
+.IP 1. 4
+Boot out the
+.B org.mu2edaq.notify-server
+launchd agent if loaded, run
+.BR stop-mu2edaq-notify-server.sh (1),
+and report anything still listening on 8095.
+.B This stops the notification server itself:
+no event from any path, including on\-network publishers and the OKD proxy,
+is delivered until it is started again.
+.IP 2. 4
+Boot out the
+.B org.mu2edaq.notify-proxy-tunnel
+agent if loaded, stop the pid\-file tunnel, and report any stray SSH
+connection to the instance.
+.IP 3. 4
+.B systemctl stop caddy
+on the instance if it is running and reachable.
+.IP 4. 4
+Retract the public A record to the unroutable sink with
+.B update-notify-dns.sh \-\-retract
+when the instance's address is auto\-assigned and the record points at it, so
+the name never dangles on a released address. A record that points elsewhere,
+or an Elastic IP, is left alone.
+.IP 5. 4
+Stop the EC2 instance and wait for
+.BR stopped .
+.PP
+Steps 1 to 3 continue past individual failures.
+.SH OPTIONS
+None; everything is set by environment variables.
+.SH FILES
+.TP
+.I ~/Library/LaunchAgents/org.mu2edaq.notify-server.plist
+.TP
+.I ~/Library/LaunchAgents/org.mu2edaq.notify-proxy-tunnel.plist
+launchd agents unloaded in steps 1 and 2 (macOS). Not kept in this
+repository.
+.SH ENVIRONMENT
+.TP
+.BR MU2EDAQ_NOTIFY_SERVER_LAUNCH_AGENT ", " MU2EDAQ_NOTIFY_TUNNEL_LAUNCH_AGENT
+Plist paths for the two agents.
+.TP
+.B MU2EDAQ_NOTIFY_DNS_RETRACT
+0 skips step 4.
+.TP
+.BR MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID ", " MU2EDAQ_NOTIFY_PROXY_DNS_NAME ", " MU2EDAQ_NOTIFY_PROXY_USER ", " MU2EDAQ_NOTIFY_PROXY_KEY ", " MU2EDAQ_NOTIFY_PROXY_PIDFILE
+As for
+.BR start-mu2edaq-notify-chain.sh (1).
+.TP
+.B MU2EDAQ_NOTIFY_DEBUG
+1 enables
+.BR "set \-x" .
+.SH "EXIT STATUS"
+0 when the instance reaches
+.BR stopped ;
+non\-zero when an AWS call in steps 3 to 5 fails.
+.SH EXAMPLES
+.nf
+scripts/stop\-mu2edaq\-notify\-chain.sh
+# bring the server back without the public edge:
+launchctl bootstrap gui/$(id \-u) \e
+    ~/Library/LaunchAgents/org.mu2edaq.notify\-server.plist
+.fi
+.SH SEE ALSO
+.BR start-mu2edaq-notify-chain.sh (1),
+.BR stop-mu2edaq-notify-proxy.sh (1),
+.BR update-notify-dns.sh (1)
+.PP
+.I docs/reverse-proxy-operations.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

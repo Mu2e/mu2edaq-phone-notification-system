@@ -1,6 +1,6 @@
-.TH GET-VAULT-APPTOKEN 1 "2026-08-19" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.TH GET-VAULT-APPTOKEN.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
 .SH NAME
-get-vault-apptoken \- obtain a HashiCorp Vault AppRole token for the mu2edaq-pager application
+get\-vault\-apptoken.sh \- obtain a HashiCorp Vault AppRole token for the mu2edaq-pager application
 .SH SYNOPSIS
 .B ./scripts/get-vault-apptoken.sh
 [\fIOPTIONS\fR]
@@ -189,6 +189,16 @@ The config file
 .IP 4. 3
 Built-in defaults
 .RE
+.SH FILES
+.TP
+.I ~/.vault-token
+The Vault CLI token helper, where the personal session is stored.
+.TP
+.I ./config/vault.yaml
+Optional project-local defaults.
+.TP
+.I ~/.config/mu2edaq-pager/vault.yaml
+Optional per-user defaults.
 .SH ENVIRONMENT
 .TP
 .B VAULT_ADDR
@@ -304,16 +314,6 @@ WRAPPED=$(./scripts/get-vault-apptoken.sh --wrap-ttl 5m)
 vault unwrap "$WRAPPED"
 .EE
 .RE
-.SH FILES
-.TP
-.I ~/.vault-token
-The Vault CLI token helper, where the personal session is stored.
-.TP
-.I ./config/vault.yaml
-Optional project-local defaults.
-.TP
-.I ~/.config/mu2edaq-pager/vault.yaml
-Optional per-user defaults.
 .SH SECURITY
 The generated token is a live credential. Files written with
 .B \-\-output
@@ -393,8 +393,11 @@ Direct use. An explicit
 always takes precedence over AppRole minting, so a token supplied by a
 calling script is reused rather than duplicated.
 .SH SEE ALSO
-.BR vault\-client (1),
-.BR deploy\-okd\-proxy (1),
+.BR vault_client.py (1),
+.BR deploy-okd-proxy.sh (1),
 .BR vault (1)
 .PP
 .I docs/Vault\-Secrets.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

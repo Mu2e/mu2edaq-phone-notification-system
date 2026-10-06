@@ -1,0 +1,162 @@
+.TH MU2EDAQ_NOTIFY 3 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+mu2edaq_notify \- Python publisher library for the Mu2e DAQ notification server
+.SH SYNOPSIS
+.nf
+.B from mu2edaq_notify import NotifyPublisher, publish_event
+.B from mu2edaq_notify import SEVERITIES, normalize_event, severity_index
+
+pub = NotifyPublisher(server_url=None, token=None, source=None,
+                      category=None, host=None, timeout=5.0,
+                      discover=True, fallback_url=None)
+ok = pub.publish(severity, title, message="", source=None,
+                 category=None, meta=None)
+pub.debug(title, message="", **kw)      pub.info(...)
+pub.warning(...)    pub.error(...)      pub.critical(...)
+
+ok = publish_event(severity, title, message="", **kwargs)
+.fi
+.SH DESCRIPTION
+Standard\-library\-only client that publishes one event per call to
+.B POST /api/events
+on
+.BR mu2edaq-notify-server (1).
+Installing the
+.B mu2edaq-notify
+distribution nevertheless pulls in the server's dependencies (Flask,
+SQLAlchemy, httpx, cryptography), because they are declared as package
+dependencies.
+.PP
+.B Address resolution.
+The constructor resolves two addresses, each in the order argument >
+environment > discovery: the primary
+.RB ( server_url ,
+.BR $MU2EDAQ_NOTIFY_URL ,
+then the first mu2edaq\-discovery ANNOUNCE for
+.BR app=notify )
+and the fallback
+.RB ( fallback_url ,
+.BR $MU2EDAQ_NOTIFY_FALLBACK_URL ,
+then that ANNOUNCE's
+.BR meta.fallback_url ).
+Discovery runs once, inside the constructor, only when
+.B discover
+is true, either address is still unset, and
+.B mu2edaq_discovery
+is importable. The result is never refreshed: a publisher constructed while
+the server is unreachable or not announcing keeps no address, and every later
+.B publish()
+returns False after one WARNING log line. Long\-running processes should pass
+.B server_url
+explicitly or construct the publisher when they publish.
+.PP
+.B Delivery.
+.B publish()
+POSTs to the primary and tries the fallback only when the primary cannot be
+reached at the network level (DNS, connection, timeout, TLS); any HTTP reply,
+including 4xx and 5xx, ends the attempt. It returns True on a 2xx reply and
+False otherwise, and logs failures at WARNING through the
+.B mu2edaq_notify.publisher
+logger. It does not raise on a delivery failure. It
+.B does
+raise
+.B ValueError
+when both
+.I title
+and
+.I message
+are empty, because the event is normalized client\-side before sending.
+.PP
+.B Credentials.
+The bearer token is sent to whichever address is used. An address learned
+from discovery comes from an unauthenticated multicast reply, so a host on
+the same subnet can direct the token to itself; pass
+.B server_url
+explicitly where that matters. HTTPS is verified against
+.B certifi
+when installed, else the system CA store.
+.PP
+.B Thread safety.
+A publisher holds no mutable state after construction and may be shared
+between threads; each call opens its own connection.
+.SH "EVENT FIELDS"
+.B publish()
+builds the event with
+.BR normalize_event ():
+.TP
+.B severity
+One of
+.BR SEVERITIES :
+.BR debug ,
+.BR info ,
+.BR warning ,
+.BR error ,
+.BR critical ,
+case\-insensitive. Any other value is silently replaced by
+.BR info .
+.TP
+.BR title ", " message
+Title up to 200 characters, message up to 4000; an empty title becomes the
+first line of the message.
+.TP
+.BR source ", " category
+Per\-call value, else the publisher's own (constructor argument; for
+.B source
+the basename of
+.BR $_ ,
+else
+.BR python ;
+for
+.B category
+.BR $MU2EDAQ_NOTIFY_CATEGORY ,
+else empty). Both truncated to 100 characters. Categories are freeform; the
+server's
+.B GET /api/categories
+lists the configured set but does not enforce it.
+.TP
+.B host
+The constructor's
+.BR host ,
+else
+.BR socket.gethostname ().
+.TP
+.B meta
+A dict; keys and values are converted with
+.BR str ().
+No size limit is applied.
+.SH ENVIRONMENT
+.TP
+.B MU2EDAQ_NOTIFY_URL
+Primary server URL.
+.TP
+.B MU2EDAQ_NOTIFY_FALLBACK_URL
+Fallback server URL.
+.TP
+.B MU2EDAQ_NOTIFY_TOKEN
+Publisher bearer token.
+.TP
+.B MU2EDAQ_NOTIFY_CATEGORY
+Default category.
+.SH EXAMPLES
+.nf
+import logging, os
+from mu2edaq_notify import NotifyPublisher
+
+log = logging.getLogger(__name__)
+
+pub = NotifyPublisher(server_url="https://mu2edaq\-pager.fnal.gov",
+                      token=os.environ["MU2EDAQ_NOTIFY_TOKEN"],
+                      source="dtc\-monitor", category="Trigger")
+if not pub.error("DTC link down", "ROC link 3 lost lock",
+                 meta={"run": "107001"}):
+    log.warning("page not accepted")
+.fi
+.SH SEE ALSO
+.BR mu2edaq-notify (1),
+.BR mu2edaq-notify-server (1),
+.BR mu2edaq_notify_cpp (3)
+.PP
+.I docs/INTERFACES.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

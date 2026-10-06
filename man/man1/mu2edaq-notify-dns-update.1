@@ -1,4 +1,4 @@
-.TH MU2EDAQ-NOTIFY-DNS-UPDATE 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.TH MU2EDAQ-NOTIFY-DNS-UPDATE 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
 .SH NAME
 mu2edaq\-notify\-dns\-update \- publish an EC2 instance's public IPv4 into Route 53
 .SH SYNOPSIS
@@ -88,16 +88,6 @@ Report the change, submit nothing.
 .TP
 .BR \-q ", " \-\-quiet
 Only report changes and errors.
-.SH ENVIRONMENT
-.B MU2EDAQ_NOTIFY_DNS_CONFIG,
-.B MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID,
-.B MU2EDAQ_NOTIFY_DNS_RECORD,
-.B MU2EDAQ_NOTIFY_DNS_TTL,
-.B MU2EDAQ_NOTIFY_DNS_WAIT,
-.B MU2EDAQ_NOTIFY_DNS_IP_TRIES,
-.B MU2EDAQ_NOTIFY_DNS_IP_DELAY,
-.B MU2EDAQ_NOTIFY_DNS_LOGFILE,
-.B MU2EDAQ_NOTIFY_IMDS_BASE.
 .SH FILES
 .TP
 .I /etc/mu2edaq-notify-dns.conf
@@ -111,6 +101,19 @@ Runs this at every boot, ordered before
 Five\-minute drift guard; a no\-op read when the record is already right.
 .TP
 .I /var/log/mu2edaq-notify-dns.log
+Default run log
+.RB ( \-\-log ,
+.BR MU2EDAQ_NOTIFY_DNS_LOGFILE ).
+.SH ENVIRONMENT
+.B MU2EDAQ_NOTIFY_DNS_CONFIG,
+.B MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID,
+.B MU2EDAQ_NOTIFY_DNS_RECORD,
+.B MU2EDAQ_NOTIFY_DNS_TTL,
+.B MU2EDAQ_NOTIFY_DNS_WAIT,
+.B MU2EDAQ_NOTIFY_DNS_IP_TRIES,
+.B MU2EDAQ_NOTIFY_DNS_IP_DELAY,
+.B MU2EDAQ_NOTIFY_DNS_LOGFILE,
+.B MU2EDAQ_NOTIFY_IMDS_BASE.
 .SH EXIT STATUS
 .TP
 .B 0
@@ -144,3 +147,6 @@ journalctl \-u mu2edaq\-notify\-dns.service \-n 50 \-\-no\-pager
 .BR update-notify-caa.sh (1),
 .IR docs/reverse\-proxy\-setup.md ,
 .IR docs/reverse\-proxy\-operations.md
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

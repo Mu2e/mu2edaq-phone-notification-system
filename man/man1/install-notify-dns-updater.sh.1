@@ -1,4 +1,4 @@
-.TH INSTALL-NOTIFY-DNS-UPDATER 1 "August 2026" "mu2edaq-notify 0.1.0" "Mu2e DAQ"
+.TH INSTALL-NOTIFY-DNS-UPDATER.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
 .SH NAME
 install\-notify\-dns\-updater.sh \- install the self\-registering DNS updater on the AWS proxy
 .SH SYNOPSIS
@@ -84,6 +84,26 @@ Install the boot unit but not the five\-minute drift timer.
 .TP
 .B \-\-no\-run
 Install and enable, but do not run the updater immediately.
+.SH ENVIRONMENT
+.TP
+.BR MU2EDAQ_NOTIFY_PROXY_USER ", " MU2EDAQ_NOTIFY_PROXY_KEY
+Defaults for
+.B \-u
+.RB ( ec2\-user )
+and
+.B \-k
+.RI ( data/mu2edaq\-notify\-proxy.pem ).
+.TP
+.BR MU2EDAQ_NOTIFY_PROXY_HOST ", " MU2EDAQ_NOTIFY_PROXY_INSTANCE_ID ", " MU2EDAQ_NOTIFY_PROXY_DNS_NAME
+Used to find the instance when
+.B \-H
+is not given; defaults in
+.IR scripts/notify\-proxy\-common.sh .
+.SH "EXIT STATUS"
+0 on success (or after
+.BR \-h ),
+1 when the target host is unreachable or an install step fails, 2 on an
+unknown option.
 .SH EXAMPLES
 Install onto the running instance:
 .PP
@@ -108,3 +128,6 @@ aws ec2 modify\-instance\-attribute \\
 .BR mu2edaq-notify-dns-update (1),
 .BR update-notify-dns.sh (1),
 .BR update-notify-caa.sh (1)
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

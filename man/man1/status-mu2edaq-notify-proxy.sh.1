@@ -1,0 +1,51 @@
+.TH STATUS-MU2EDAQ-NOTIFY-PROXY.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+status-mu2edaq-notify-proxy.sh \- report the state of every link in the public notification chain
+.SH SYNOPSIS
+.B scripts/status\-mu2edaq\-notify\-proxy.sh
+.SH DESCRIPTION
+Read\-only. Prints one line each for: the local server and tunnel pid files;
+the instance's public IPv4 from the EC2 API; the public name's DNS answer and
+whether it matches
+.RB ( STALE
+when it does not); the CAA record's pinned ACME account; remote
+.B caddy
+and
+.B mu2edaq\-notify\-dns.timer
+state over SSH; and the HTTP status of the public
+.B /api/health
+(8 s timeout).
+.PP
+The pid\-file lines only see processes started by the start scripts; a server
+or tunnel run by its launchd agent shows as
+.BR "no pid file" .
+.SH OPTIONS
+None.
+.SH ENVIRONMENT
+.BR MU2EDAQ_NOTIFY_SERVER_PIDFILE ,
+.BR MU2EDAQ_NOTIFY_PROXY_PIDFILE ,
+.BR MU2EDAQ_NOTIFY_PUBLIC_URL ,
+.BR MU2EDAQ_NOTIFY_PROXY_USER ,
+.BR MU2EDAQ_NOTIFY_PROXY_KEY ,
+.BR MU2EDAQ_NOTIFY_PROXY_DNS_NAME ,
+.BR MU2EDAQ_NOTIFY_ROUTE53_ZONE_ID ,
+and the shared defaults in
+.IR scripts/notify-proxy-common.sh .
+.SH "EXIT STATUS"
+Always 0; read the output. It is not a monitoring probe \(em use
+.B update\-notify\-dns.sh \-\-check
+or
+.B restore\-mu2edaq\-notify\-tunnel.sh \-\-check
+for that.
+.SH EXAMPLES
+.nf
+scripts/status\-mu2edaq\-notify\-proxy.sh
+.fi
+.SH SEE ALSO
+.BR start-mu2edaq-notify-chain.sh (1),
+.BR update-notify-dns.sh (1),
+.BR update-notify-caa.sh (1),
+.BR restore-mu2edaq-notify-tunnel.sh (1)
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

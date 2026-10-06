@@ -1,0 +1,51 @@
+.TH STOP-MU2EDAQ-NOTIFY-PROXY.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+stop-mu2edaq-notify-proxy.sh \- stop the reverse tunnel, optionally also the local server and EC2 Caddy
+.SH SYNOPSIS
+.B scripts/stop\-mu2edaq\-notify\-proxy.sh
+.SH DESCRIPTION
+Stops the pid\-file reverse tunnel (SIGTERM, up to 5 s, then SIGKILL) and
+removes the pid file. By default it leaves the local server, remote Caddy and
+the EC2 instance running. It does not touch the
+.B org.mu2edaq.notify-proxy-tunnel
+launchd agent: a tunnel run by that agent has no pid file here and keeps
+running, so the public edge stays up. Boot the agent out with
+.B launchctl bootout
+(as
+.BR stop-mu2edaq-notify-chain.sh (1)
+does) to drop it.
+.SH OPTIONS
+None; everything is set by environment variables.
+.SH FILES
+.TP
+.I data/mu2edaq-notify-proxy-tunnel.pid
+Tunnel pid file.
+.SH ENVIRONMENT
+.TP
+.B MU2EDAQ_NOTIFY_STOP_SERVER
+1 also runs
+.BR stop-mu2edaq-notify-server.sh (1).
+.TP
+.B MU2EDAQ_NOTIFY_STOP_REMOTE_CADDY
+1 also runs
+.B sudo systemctl stop caddy
+on the instance.
+.TP
+.BR MU2EDAQ_NOTIFY_PROXY_USER ", " MU2EDAQ_NOTIFY_PROXY_KEY ", " MU2EDAQ_NOTIFY_PROXY_PIDFILE
+As for
+.BR start-mu2edaq-notify-proxy.sh (1).
+.SH "EXIT STATUS"
+0, unless
+.B MU2EDAQ_NOTIFY_STOP_REMOTE_CADDY=1
+and the key is missing, the instance has no address, or the remote stop fails.
+.SH EXAMPLES
+.nf
+scripts/stop\-mu2edaq\-notify\-proxy.sh
+MU2EDAQ_NOTIFY_STOP_REMOTE_CADDY=1 scripts/stop\-mu2edaq\-notify\-proxy.sh
+.fi
+.SH SEE ALSO
+.BR start-mu2edaq-notify-proxy.sh (1),
+.BR stop-mu2edaq-notify-chain.sh (1)
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .

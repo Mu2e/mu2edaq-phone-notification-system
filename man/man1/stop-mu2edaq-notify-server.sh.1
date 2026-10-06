@@ -1,0 +1,36 @@
+.TH STOP-MU2EDAQ-NOTIFY-SERVER.SH 1 "2026-10-06" "mu2edaq-phone-notification-system 0.1.0" "Mu2e DAQ Manual"
+.SH NAME
+stop-mu2edaq-notify-server.sh \- stop a notification server started by start-mu2edaq-notify-server.sh
+.SH SYNOPSIS
+.B ./stop-mu2edaq-notify-server.sh
+.SH DESCRIPTION
+Reads
+.IR data/notify-server.pid ,
+sends SIGTERM, polls for up to 5 s, then sends SIGKILL, and removes the pid
+file. A stale pid file is removed. A server started any other way \(em by
+hand, or by the
+.B org.mu2edaq.notify-server
+launchd agent \(em has no pid file and is left running; use
+.B launchctl bootout
+for the agent, or
+.BR stop-mu2edaq-notify-chain.sh (1),
+which does both.
+.SH OPTIONS
+None.
+.SH FILES
+.TP
+.I data/notify-server.pid
+Pid file written by
+.BR start-mu2edaq-notify-server.sh (1).
+.SH "EXIT STATUS"
+0 in every normal case, including when there was nothing to stop.
+.SH EXAMPLES
+.nf
+\&./stop\-mu2edaq\-notify\-server.sh
+.fi
+.SH SEE ALSO
+.BR start-mu2edaq-notify-server.sh (1),
+.BR stop-mu2edaq-notify-chain.sh (1)
+.SH AUTHOR
+Mu2e DAQ Group. Part of
+.BR mu2edaq-phone-notification-system .
